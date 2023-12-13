@@ -1,18 +1,18 @@
 import math
-def distributive(lista):
-    elementos = []
-    for i in lista:
-        if i not in elementos:
-            elementos.append(i)
+def distributive(list_):
+    elements = []
+    for i in list_:
+        if i not in elements:
+            elements.append(i)
 
-    n_elementos = len(elementos)
-    n = len(lista)
-    elementos_distribuidos = []
+    n_elements = len(elements)
+    n = len(list_)
+    scatter_elements = []
     for i in range(n):
-        elemento_actual = elementos[i % n_elementos]
-        elementos_distribuidos.append(elemento_actual)
+        current_element = elements[i % n_elements]
+        scatter_elements.append(current_element)
 
-    return elementos_distribuidos
+    return scatter_elements
 
     
     
@@ -20,7 +20,6 @@ def sumative(list):
     output = 0
     for i in list:
         output = output + i
-#    print(output)
     return output
 def create_pattern(value, reacher):
     divider = value / reacher
@@ -31,7 +30,6 @@ def create_pattern(value, reacher):
         pattern = distributive(pattern)
         sum = sumative(pattern)
         diference = sum - value
-#        print(diference,value)
         pattern[len(pattern)-1] -= diference
         return pattern
     else:
@@ -47,15 +45,9 @@ def create_pattern(value, reacher):
         pattern = distributive(pattern)
         sum = sumative(pattern)
         diference = sum - value
-#        print(diference,value)
         pattern[len(pattern)-1] -= diference
         return pattern
-        
-        
-#print(create_pattern(100, 8))
-#print(create_pattern(24, 16))
-#print(create_pattern(24, 12))
-#print(create_pattern(24, 10))
+
 
 def inside_range(value,reach,tolerance):
     if ((value >= (reach-tolerance)) and (value <= (reach+tolerance))):
@@ -86,5 +78,3 @@ def square_value(value, size):
     y = math.floor(value/size)
     x = value-(y*size)
     return x,y
-#print(inside_range(123,128,5))
-#print(True and False)
