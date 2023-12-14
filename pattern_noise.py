@@ -23,7 +23,7 @@ def sumative(list):
     return output
 def create_pattern(value, reacher):
     divider = value / reacher
-    print(divider)
+    #print(divider)
     if divider.is_integer(): 
     
         pattern = [int(divider)] * reacher
