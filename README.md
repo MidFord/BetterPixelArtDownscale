@@ -5,7 +5,7 @@ Tests that were carried out and their results are shown below:
 ## Usage
 The code is composed of two 4 essential modules, which are:
 ### pattern_noise
-This module allows you to create a list of numbers, the expected value of the sum of all the values in the list, and indicating the size of the list,. It interleaves in a pattern of 0, 1, 2, 3, 4 the numbers in the list, thus creating a stylised pattern.
+This module allows you to create a list of numbers using ***create_pattern*** function, indicating the expected value of the sum of all the values in the list, and the size of the list,. It interleaves in a pattern of 0, 1, 2, 3, 4 the numbers in the list, thus creating a stylised pattern.
 **Examples of use:**
 ```
 import pattern_noise
@@ -47,8 +47,69 @@ Result = **_[3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 4]_**
 
 **As we can see that the sum of all the values in the list always gives the expected value, but creating a stylised pattern of numbers, which we will use in the next module.**
 
-## Minecraft item textures 16*16: 
+### image_resize
 
+This module allows you to process an image and resize it ***(intended to resize it to a smaller size than the original)*** to a new specified size ***(works best if the division between the current_size and the new_size is greater than 1.5)***. For this it uses the ***pattern_noise*** module to generate stylised lists of the pixel indices that should be taken into the new image at the new scale. It is used from the ***processImage** function, which receives the image path to process, a divisor factor for the width and a divisor factor for the height (these factors indicate the new image size/factor for the height and width), and optionally can be enabled to simplify the colours, and giving a simplifier factor, which takes each pixel and processes it round(pixel*simplifier)/simplifier. And returns a PIL image.
+
+**Examples of use:**
+
+Image to process ![mareep](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b766d2e5-a928-4563-a066-e9c367288274)
+
+```
+import image_resize
+from PIL import Image
+image_path = "mareep.png"
+width_factor = 2
+height_factor = 2
+resized_image = image_resize.processImage(image_path,width_factor,height_factor)
+resized_image.save("resised_"+image_path)
+```
+
+Result ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/91786f29-9165-4270-b4a3-f305baa72379)
+
+### image_edges
+
+This module allows you to process an image, and thus obtain the outline and borders of the image, additionally you can indicate a division factor to change the size of the resulting image. It is used from the ***processImage*** function, it receives the image path, the factor for the width, the factor for the height, and additionally you can decide whether to include the outline, the inner edges, or just the edges, you can also set parameters to change the edge detection ***(already set previously to work with pixel art)***. And it returns an PIL image with the new size that is size/factor, for height and width, the image contains what is specified as internal borders or outlines, and the pixel value that corresponds to the image in which the border is located.
+
+
+**Examples of use:**
+
+Image to process ![mareep](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b766d2e5-a928-4563-a066-e9c367288274)
+
+```
+import image_edges
+from PIL import Image
+image_path = "mareep.png"
+width_factor = 2
+height_factor = 2
+resized_image = image_edges.processImage(image_path,width_factor,height_factor)
+resized_image.save("resised_"+image_path)
+```
+
+Result ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/431b8319-9a51-4188-b6a8-440417fac346)
+
+### image_resize_edge
+
+This module is the main usage module, it allows you to process an image, resize it **(resize it to a smaller size than the original)*** and obtain the resized image, with sharp, fine contours and edges ***(intended for pixel art)***. For this it combines the modules ***image_resize*** to obtain the resized image by ***pattern_noise***, and ***image_edges*** to obtain the image of the contours and edges of the image. And it combines in the first layer the resized image and in the second layer the image of the edges, to obtain the final image. It receives the path of the image, the factor for the width, the factor for the height, additionally it receives optional parameters ***(already set previously to work with pixel art)*** to include or not the contours, the edges, for the edge detection. Returns an PIL image.
+
+**Examples of use:**
+
+Image to process ![mareep](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b766d2e5-a928-4563-a066-e9c367288274)
+
+```
+import image_resize_edge
+from PIL import Image
+image_path = "mareep.png"
+width_factor = 2
+height_factor = 2
+resized_image = image_resize_edge.processImage(image_path,width_factor,height_factor)
+resized_image.save("resised_"+image_path)
+```
+Result ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/9b70e850-8cf6-4a07-986e-e2616cbc33d7)
+
+## Usage results
+
+### Minecraft item textures 16*16: 
 
 **Original image:**
 
@@ -326,7 +387,7 @@ Result = **_[3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 4]_**
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/36974f85-9d1d-4cfe-b68f-9a8cb7b327be)
 
-## Minecraft mob textures:
+### Minecraft mob textures:
 
 **Original image:**
 
