@@ -105,7 +105,20 @@ resized_image = image_resize_edge.processImage(image_path,width_factor,height_fa
 resized_image.save("resised_"+image_path)
 ```
 Result ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/9b70e850-8cf6-4a07-986e-e2616cbc33d7)
+## Google Colab
+To implement in Google Colab you must do these steps:
 
+**First, clone this repository in Google Colab:**
+```
+!git clone https://github.com/MidFord/BetterPixelArtDownscale.git
+```
+
+**Finally, add this to the beginning of your code:**
+```
+import sys
+sys.path.append('BetterPixelArtDownscale')
+## Your Code Down Here!
+```
 ## Usage results
 
 ### Minecraft item textures 16*16: 
