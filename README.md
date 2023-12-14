@@ -137,91 +137,91 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b9989842-6a29-46cb-9652-cf4f763efdec)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c419bdac-2eb0-4881-9d5b-a85a4f046016)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f9001b2c-c2a3-4958-9602-6fbae85c8db3)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/d7177a46-69ae-42c7-aef7-77067b4e7706)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/67a157a4-dc91-432b-8939-12b3f71c6c3c)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/12392623-a7e7-456b-aafb-4c5b740b3d69)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/468ff450-d853-4475-ab48-af4094e0f242)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/56f1f795-8451-4f0e-b509-2375b4d4b6e6)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/92e2bfbf-8a36-4607-9cb6-652ade96c428)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/8f9fcc5c-baf4-4161-9d94-5926a9241e47)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/a28bf0dd-0e3c-4498-b788-c5efdc7e391e)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/8fb1db17-1250-44bc-abb0-fd82da07b2f1)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/95b64fea-faef-4a43-8dc2-321ae2fde554)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/3d7546d9-b227-4940-ac76-50872e01a46d)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/1d261d01-90b0-4d0d-9c09-94337a596c72)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/969217ca-c059-4949-af17-d744fcb5de54)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ccadcc7d-4455-4947-b3c7-9a9f3c22e0a7)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/fd3b9c55-adbe-4dda-af47-073d846807a3)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f9926670-502e-4589-a813-619c7dd035f7)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/36130562-133e-4abc-813a-3cd5a2a9d969)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/66053821-27bb-4690-adff-06aa767f627f)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/2a2b04b6-85d8-48d3-a00f-34dd497b9c6d)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f98b5672-6952-43ad-999d-3bea5ef28b12)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/82ca2f3c-0ccb-4c5a-860f-9c3dd2554746)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/327c1e5e-fb2b-4b4f-94cb-9ef529ffc92c)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/321c3bfa-11cd-459c-a9fa-4d5c752cf361)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/43fbeb21-7546-484e-b216-1030d7067708)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/aa118908-d2e3-472e-81a7-ebd315e190d4)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/cba46e43-b035-44b6-ae05-144a1a980e92)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c664f8a7-552c-46ca-a733-2138c4a4e60d)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f48bd5ff-5c7a-4276-8bc0-3e8d706ff999)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f075bd4b-463e-46c9-9407-4c1e946d2a0b)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/da52f5b7-6444-4403-87c5-1e99750bfc20)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/bb0a5cdb-5b0b-4448-99c3-39242d7b5cf2)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b69753ab-d36a-48ba-9f19-87c2e2b18b66)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/71650c98-01b4-4d83-8a8b-f6bde8ed7e26)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/7ddd48cd-933d-4a29-adb2-35d5c84a970a)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/7598c27d-4979-47f7-8fef-840bdf994eaa)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c985734b-0a84-4142-9a5e-8caf48dc23b0)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/2d954455-fa95-4651-ae18-d3fa4676ddf7)
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c66a1249-7fe1-4659-994c-b3a819c2d8f5)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/517688be-adf1-4371-a04e-50826b532ced)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/a2681a4f-9bb6-4c79-8f9f-dd96fff43d59)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/1e3008a5-cce0-46cd-b18f-85c3692aa8a9)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -229,11 +229,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c6a92f5f-d8bc-4378-b539-f924e9fdf82a)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/384373c9-c9f0-46d1-a10c-f0da842cb396)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/939c0ec6-59df-41f2-8ce9-16a5c5de613a)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/55aba9f1-b6ff-4f76-a9dd-733cfb41f7b9)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -241,11 +241,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/73f516cb-4101-44ca-9b68-170866f782f8)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/0ea6d2bb-aef4-47dc-ba21-67715efcca6f)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/eb68ed3a-3ab3-4e21-bd2f-3cc25d96c436)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/8452770f-81b4-4b23-810f-4e279b3551b3)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -253,11 +253,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ae863531-07d1-4510-9f43-bc99e124fe93)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/08f27e64-263a-4ce3-bb4d-1ea53f2d234f)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b2cdc290-1c32-4857-bfe3-fbb810954630)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/feeced39-74d1-468b-8022-a266291765e5)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -265,11 +265,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/cff2e20d-722d-4576-845c-bf109ed9e81c)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f12beb33-7ae5-4c0b-9406-df1597c8540b)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/be2abdce-bd7c-4211-88bc-33184363d22c)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/0d3c224a-7c02-4bee-bf3f-9c02c3928987)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -277,11 +277,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/2fedbc27-7721-423a-bbb0-c2f643c94c95)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/1f82d4e7-297e-42a3-b95f-458606b82537)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/afb41c0a-745d-42d2-b22a-d384f36ef169)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f2160ee6-e549-4adb-acf1-556e5ee40ad5)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -289,11 +289,11 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ab84089e-a90a-4e28-9ea0-036e91fb6927)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/425533c6-bb53-4c5f-87eb-4aa263ac32e4)
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/f9361b95-bca4-4a0e-b9bf-39b4409e7c89)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/a08c01db-5dd6-4b11-aa27-b3a86cb8853a)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -305,7 +305,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c49e1b13-20c8-4b21-bca7-1a477b27548e)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/9af325c5-d727-4c54-95b0-0a25889bad69)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -317,7 +317,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/8ebbc69a-1a05-4ac5-a6d2-8b4449ab4fe7)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ac82d08c-01bc-49fd-9498-a25fe135f3a5)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -329,7 +329,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/0d2402a1-2f48-4f55-a701-d5a20bbd5ad1)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/b0889cea-e84a-406b-8b53-fdc21229137a)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -341,7 +341,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/22efa713-8dcb-46df-91a3-2bc2210ea4ae)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/2abab32a-7f53-4915-97cb-be12dd500f8a)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -353,7 +353,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ed38922a-088f-4d58-a4be-4d8998cf543b)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/d3a62fe6-b5dc-437d-9b15-fea70bc45f17)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -365,7 +365,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ef49477f-a975-4fed-9c6f-4f7a0a257aca)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/a8aa3d1e-16ae-4fc8-82c5-f38b3dd24529)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -377,7 +377,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/0ac78775-6dd4-414e-8495-068998e2aeba)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/9cc6d4f9-e974-4b89-8f1c-980437f85a85)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
@@ -389,7 +389,7 @@ sys.path.append('BetterPixelArtDownscale')
 
 **Original image:**
 
-![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/995a84a4-e942-4b2c-9ec4-7e25a6615e5e)
+![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ebd5eda4-a970-41cf-b2ce-3cfc80dc7618)
 
 **Resized to 8*8 using the pattern_noise algorithm:**
 
