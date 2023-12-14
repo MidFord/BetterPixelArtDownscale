@@ -89,16 +89,52 @@ Resized to 8*8 using the pattern_noise algorithm + edge detection and edge perma
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c66a1249-7fe1-4659-994c-b3a819c2d8f5)
 
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
+
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/c6a92f5f-d8bc-4378-b539-f924e9fdf82a)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/73f516cb-4101-44ca-9b68-170866f782f8)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ae863531-07d1-4510-9f43-bc99e124fe93)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/cff2e20d-722d-4576-845c-bf109ed9e81c)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/2fedbc27-7721-423a-bbb0-c2f643c94c95)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 ![image](https://github.com/MidFord/BetterPixelArtDownscale/assets/87622554/ab84089e-a90a-4e28-9ea0-036e91fb6927)
+Original image:
+
+Resized to 8*8 using the pattern_noise algorithm:
+
+Resized to 8*8 using the pattern_noise algorithm + edge detection and edge permanence:
 
 
