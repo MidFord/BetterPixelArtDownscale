@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "better-pixel-art-downscale"
+version = "2.0.0"
+description = "Edge-aware pixel-art downscaling with silhouette-stable outlines"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "MidFord" }]
+dependencies = [
+  "numpy>=1.24",
+  "Pillow>=10.0",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+better-pixel-art-downscale = "better_pixel_art_downscale.cli:main"
+
+[tool.setuptools]
+py-modules = ["image_resize", "image_resize_edge", "image_edges", "pattern_noise"]
+
+[tool.setuptools.packages.find]
+include = ["better_pixel_art_downscale*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
