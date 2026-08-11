@@ -45,3 +45,13 @@ testpaths = ["python/tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+src = ["python"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+  "better_pixel_art_downscale",
+  "image_edges",
+  "image_resize",
+  "image_resize_edge",
+  "pattern_noise",
+]
