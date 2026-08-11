@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "better-pixel-art-downscale"
-version = "2.0.0"
+version = "2.1.0"
 description = "Edge-aware pixel-art downscaling with silhouette-stable outlines"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,14 +31,16 @@ dev = ["pytest>=8", "ruff>=0.6"]
 better-pixel-art-downscale = "better_pixel_art_downscale.cli:main"
 
 [tool.setuptools]
+package-dir = {"" = "python"}
 py-modules = ["image_resize", "image_resize_edge", "image_edges", "pattern_noise"]
 
 [tool.setuptools.packages.find]
+where = ["python"]
 include = ["better_pixel_art_downscale*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
-testpaths = ["tests"]
+testpaths = ["python/tests"]
 
 [tool.ruff]
 line-length = 100

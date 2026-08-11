@@ -1,29 +1,37 @@
 # BetterPixelArtDownscale
 
-A deterministic, edge-aware Python downscaler for pixel art. It preserves sharp palettes, thin features, internal color boundaries, transparent backgrounds, and—most importantly—the alignment between an object's silhouette and its outline.
+A deterministic, silhouette-first pixel-art downscaler with matching **Python** and **JavaScript** implementations.
 
-## Why v2 was rebuilt
+Instead of resizing content and edges through separate coordinate paths, BetterPixelArtDownscale builds one exact destination grid. Every output cell measures source-pixel area overlap, establishes alpha occupancy once, derives its destination boundary from that occupancy, and only then selects a source-palette color. Outlines therefore cannot drift away from or enlarge the silhouette they belong to.
 
-The original `image_resize_edge` pipeline produced the resized content and the edge layer independently:
+## Repository layout
 
-1. content pixels were selected with a distributed sampling pattern;
-2. edges were detected at source resolution;
-3. edge coordinates were divided and floored into a second target image;
-4. the two results were overlaid.
+```text
+python/      Reference Python implementation, tests, benchmarks, legacy wrappers
+javascript/  Dependency-free JavaScript port, Node PNG adapter, CLI, tests
+```
 
-Those paths did not share the same sample positions or rounding rules. At non-trivial scales, an edge could therefore land in a different destination cell than the content it belonged to, making outlines appear shifted, thicker, or a different size.
+The two implementations are intentionally separated while preserving the same algorithmic behavior.
 
-Version 2 uses **one exact destination grid**. Each output cell measures source-pixel area overlap, decides alpha occupancy once, classifies destination boundaries from that occupancy, and selects outline or interior colors only inside the established silhouette. There is no independently resized edge overlay to drift.
+## Why it is different
 
-## Installation
+- **One exact destination grid:** silhouette, boundaries and color decisions use the same fractional cell geometry.
+- **Silhouette first:** alpha coverage decides whether a destination pixel exists before outline/color selection.
+- **Outline-safe:** outline colors may win inside boundary cells but cannot create pixels outside the destination silhouette.
+- **Palette preserving:** output RGB colors are selected from actual source colors rather than invented by interpolation.
+- **Internal-edge aware:** important color transitions can survive even when they cover less area than a flat region.
+- **Thin-feature preservation:** narrow one-pixel structures get a conservative center-sample rescue path.
+- **Transparent-RGB safe:** hidden RGB in alpha-zero pixels cannot bleed into visible output.
+- **Non-integer scales:** exact fractional overlap is used rather than independent floor/round coordinate transforms.
+- **Deterministic:** stable scoring and tie-breakers produce repeatable output.
+
+## Python
+
+Install from the repository root:
 
 ```bash
 python -m pip install -e .
 ```
-
-Runtime dependencies are only NumPy and Pillow. OpenCV is no longer required.
-
-## Python API
 
 ```python
 from better_pixel_art_downscale import downscale
@@ -38,10 +46,9 @@ Using divisors:
 from better_pixel_art_downscale import downscale_by_factor
 
 result = downscale_by_factor("character.png", 2)
-result.save("character_half.png")
 ```
 
-Advanced control:
+Advanced options:
 
 ```python
 from better_pixel_art_downscale import DownscaleOptions, downscale
@@ -52,54 +59,84 @@ options = DownscaleOptions(
     preserve_outline=True,
     preserve_internal_edges=True,
 )
-
 result = downscale("character.png", (24, 24), options=options)
 ```
 
-## Command line
+The historical Python modules remain available after installation, including `image_resize_edge`, `image_resize`, `image_edges`, and `pattern_noise`.
+
+## JavaScript
+
+The JavaScript core has **zero external runtime dependencies** and consumes raw RGBA bytes:
+
+```js
+import { downscale } from './javascript/src/index.js';
+
+const result = downscale({
+  width: 16,
+  height: 16,
+  data: rgbaBytes,
+}, [8, 8]);
+```
+
+For Node PNG files, a small built-in-only adapter uses `node:fs` and `node:zlib`:
+
+```js
+import { downscaleFile } from './javascript/src/node.js';
+
+downscaleFile('character.png', 'character_8.png', {
+  size: [8, 8],
+});
+```
+
+Python-style aliases such as `downscale_by_factor`, `edge_layer`, and `downscale_file` are also available. JavaScript options accept both camelCase and Python snake_case names.
+
+See `javascript/README.md` for the complete JavaScript API.
+
+## Python ↔ JavaScript parity
+
+The port was validated against the Minecraft 26.2 benchmark used during development:
+
+- **1,964** exact 16×16 item/block textures;
+- each reduced to 8×8 by Python and JavaScript;
+- **502,784** RGBA output bytes compared;
+- **1,964 / 1,964 byte-for-byte identical outputs**;
+- **0 differing output bytes**.
+
+The Minecraft assets are not included in this repository. The methodology is documented in `javascript/PARITY.md`.
+
+## CLI
+
+Python:
 
 ```bash
 better-pixel-art-downscale input.png output.png --size 32x32
 better-pixel-art-downscale input.png output.png --factor 2
 ```
 
-Useful switches:
+JavaScript:
 
-```text
---alpha-threshold 0.5
---no-outline
---no-internal-edges
---no-thin-features
+```bash
+node javascript/src/cli.js input.png output.png --size 32x32
+node javascript/src/cli.js input.png output.png --factor 2
 ```
 
-## Compatibility
-
-The historical modules remain importable:
-
-```python
-import image_resize_edge
-
-result = image_resize_edge.processImage("character.png", 2, 2)
-```
-
-The misspelled legacy argument `iclude_outline` is still accepted, and `include_outline` is accepted as a corrected alias. The old experimental filter parameters remain accepted for call compatibility, but v2 does not use them.
-
-## Algorithm guarantees
-
-- **No edge/content coordinate split:** silhouette and edge decisions use identical cell boundaries.
-- **No transparent RGB bleeding:** colors are weighted by alpha before selection.
-- **Deterministic output:** no random edge colors or traversal-order behavior.
-- **Palette-friendly:** output colors are selected from real source colors rather than invented by interpolation.
-- **Non-integer scale support:** source coverage is computed from exact fractional overlap.
-- **Conservative outlines:** outline colors can occupy boundary cells, but cannot create pixels outside the destination silhouette.
+Useful switches in both implementations include alpha threshold control and disabling outline, internal-edge, or thin-feature preservation.
 
 ## Development
+
+Python:
 
 ```bash
 python -m pip install -e .[dev]
 pytest
-ruff check .
-python -m benchmarks.benchmark
+ruff check python
+python python/benchmarks/benchmark.py
 ```
 
-The test suite includes regression coverage for outline expansion, non-integer alignment, transparent RGB contamination, deterministic output, alpha handling, and the legacy API.
+JavaScript:
+
+```bash
+npm test --prefix javascript
+```
+
+CI runs the Python suite on Python 3.10–3.13 and the JavaScript suite on Node 18, 20 and 22.
