@@ -1,0 +1,24 @@
+{
+  "name": "better-pixel-art-downscale",
+  "version": "2.1.0",
+  "description": "Deterministic, silhouette-stable, palette-preserving pixel-art downscaling for JavaScript.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./node": "./src/node.js"
+  },
+  "bin": {
+    "better-pixel-art-downscale-js": "./src/cli.js"
+  },
+  "files": ["src", "README.md"],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": ["pixel-art", "downscale", "image", "resampling", "sprite"],
+  "author": "MidFord",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  }
+}
