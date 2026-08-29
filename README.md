@@ -64,6 +64,33 @@ result = downscale("character.png", (24, 24), options=options)
 
 The historical Python modules remain available after installation, including `image_resize_edge`, `image_resize`, `image_edges`, and `pattern_noise`.
 
+## Experimental semantic Python engine
+
+The `agent/semantic-surface-v2` work adds an experimental Python path that separates sprite topology from surface texture reconstruction instead of treating every local contrast as an internal edge.
+
+```python
+from better_pixel_art_downscale import (
+    ContentHint,
+    SemanticOptions,
+    downscale_semantic,
+)
+
+result = downscale_semantic(
+    "assets/minecraft/textures/block/stone.png",
+    (8, 8),
+    options=SemanticOptions(content_hint=ContentHint.BLOCK),
+)
+```
+
+For Minecraft-style 2x reduction:
+
+- **items** reuse the mature silhouette solver with a lower `0.05` alpha threshold and zero internal-edge score weight;
+- **opaque blocks** use source-palette-first **phase-coherent surface sampling** in Oklab;
+- **cutout/overlay blocks** keep a stable nearest sampling phase rather than promoting texture noise as outlines;
+- the analyzer exposes `structure`, `texture`, and `dither` maps for future conservative region reasoning.
+
+The semantic API is intentionally separate from `downscale()` while the new behavior is being validated. See `python/benchmarks/MINECRAFT_F8THFUL_SEMANTIC_RESULTS.md` for the current Minecraft 26.2 -> F8thful benchmark.
+
 ## JavaScript
 
 The JavaScript core has **zero external runtime dependencies** and consumes raw RGBA bytes:
@@ -131,6 +158,16 @@ python -m pip install -e .[dev]
 pytest
 ruff check python
 python python/benchmarks/benchmark.py
+```
+
+Semantic Minecraft/F8thful benchmark:
+
+```bash
+python -m pip install -e .[benchmark]
+python python/benchmarks/minecraft_f8thful_semantic.py \
+  --jar /path/to/26.2.jar \
+  --f8thful /path/to/F8thful.zip \
+  --output-dir benchmark-output
 ```
 
 JavaScript:

@@ -26,6 +26,7 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+benchmark = ["pandas>=2", "scikit-image>=0.23"]
 
 [project.scripts]
 better-pixel-art-downscale = "better_pixel_art_downscale.cli:main"
