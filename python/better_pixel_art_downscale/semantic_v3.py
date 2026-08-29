@@ -13,10 +13,9 @@ used at inference time.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 from enum import Enum
-import math
-from pathlib import Path
 
 import numpy as np
 from PIL import Image
