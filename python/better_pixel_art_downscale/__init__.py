@@ -11,19 +11,33 @@ from .semantic import (
     downscale_semantic,
     downscale_semantic_by_factor,
 )
+from .semantic_v3 import (
+    CutoutAnalysis,
+    CutoutPolicy,
+    analyze_cutout,
+    downscale_cutout,
+    downscale_semantic_v3,
+    downscale_semantic_v3_by_factor,
+)
 
 __all__ = [
     "ContentHint",
+    "CutoutAnalysis",
+    "CutoutPolicy",
     "DownscaleOptions",
     "SemanticAnalysis",
     "SemanticMode",
     "SemanticOptions",
     "analyze",
+    "analyze_cutout",
     "downscale",
     "downscale_by_factor",
+    "downscale_cutout",
     "downscale_file",
     "downscale_semantic",
     "downscale_semantic_by_factor",
+    "downscale_semantic_v3",
+    "downscale_semantic_v3_by_factor",
     "edge_layer",
 ]
 
