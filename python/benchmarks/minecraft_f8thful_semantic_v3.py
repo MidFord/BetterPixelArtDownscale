@@ -5,12 +5,12 @@ import zipfile
 from pathlib import Path
 
 import pandas as pd
+from minecraft_f8thful_semantic import _fair_pairs, _metrics
 from PIL import Image
 
 from better_pixel_art_downscale import downscale
 from better_pixel_art_downscale.semantic import ContentHint, SemanticOptions, downscale_semantic
 from better_pixel_art_downscale.semantic_v3 import downscale_semantic_v3
-from minecraft_f8thful_semantic import _fair_pairs, _metrics
 
 
 def run(jar_path: Path, f8_path: Path, output_dir: Path) -> None:
