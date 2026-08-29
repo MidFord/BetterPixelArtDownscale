@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 import pandas as pd
 from PIL import Image
