@@ -7,18 +7,13 @@
     'use strict';
 
     const PLUGIN_ID = 'better_pixel_art_downscale';
-    const PLUGIN_VERSION = '1.0.0';
-    const SETTINGS_KEY = 'better_pixel_art_downscale.resize_settings.v1';
-    const CORE_REVISION = 'BetterPixelArtDownscale v2 / JS core 58766ae30f645af40762be0c46caace67db1d86b';
+    const PLUGIN_VERSION = '1.1.0';
+    const SETTINGS_KEY = 'better_pixel_art_downscale.resize_settings.v2';
+    const LEGACY_SETTINGS_KEY = 'better_pixel_art_downscale.resize_settings.v1';
+    const CORE_REVISION = 'BetterPixelArtDownscale Semantic v3 / JavaScript parity port';
 
     let originalResizeDialog = null;
     let patchedResizeDialog = null;
-
-    // ---------------------------------------------------------------------
-    // Embedded BetterPixelArtDownscale v2 core
-    // Source: https://github.com/MidFord/BetterPixelArtDownscale
-    // Browser-safe, zero runtime dependencies.
-    // ---------------------------------------------------------------------
 
     const BetterPixelArtDownscale = (() => {
         class DownscaleOptions {
@@ -35,1083 +30,135 @@
                 this.binaryAlpha = options.binaryAlpha ?? options.binary_alpha ?? null;
                 this.validate();
             }
-
             validate() {
-                for (const name of [
-                    'alphaThreshold',
-                    'sourceAlphaThreshold',
-                    'thinFeatureThreshold',
-                    'outlineMinCoverage',
-                    'internalEdgeThreshold',
-                ]) {
+                for (const name of ['alphaThreshold','sourceAlphaThreshold','thinFeatureThreshold','outlineMinCoverage','internalEdgeThreshold']) {
                     const value = this[name];
-                    if (!(value >= 0 && value <= 1)) {
-                        throw new RangeError(`${name} must be between 0 and 1, got ${value}`);
-                    }
+                    if (!(value >= 0 && value <= 1)) throw new RangeError(`${name} must be between 0 and 1, got ${value}`);
                 }
-                if (this.internalEdgeWeight < 0) {
-                    throw new RangeError('internalEdgeWeight must be non-negative');
-                }
-                if (this.binaryAlpha !== null && typeof this.binaryAlpha !== 'boolean') {
-                    throw new TypeError('binaryAlpha must be true, false, or null');
-                }
+                if (this.internalEdgeWeight < 0) throw new RangeError('internalEdgeWeight must be non-negative');
+                if (this.binaryAlpha !== null && typeof this.binaryAlpha !== 'boolean') throw new TypeError('binaryAlpha must be true, false, or null');
                 return this;
             }
         }
-
-        function normalizeOptions(options) {
-            return options instanceof DownscaleOptions ? options : new DownscaleOptions(options ?? {});
-        }
-
+        function normalizeOptions(options) { return options instanceof DownscaleOptions ? options : new DownscaleOptions(options ?? {}); }
         const f32 = Math.fround;
-
         function validateImage(image) {
-            if (!image || !Number.isInteger(image.width) || !Number.isInteger(image.height)) {
-                throw new TypeError('image must have integer width and height properties');
-            }
-            if (image.width <= 0 || image.height <= 0) {
-                throw new RangeError('image dimensions must be positive');
-            }
-            if (!(image.data instanceof Uint8Array) && !(image.data instanceof Uint8ClampedArray)) {
-                throw new TypeError('image.data must be a Uint8Array or Uint8ClampedArray containing RGBA bytes');
-            }
+            if (!image || !Number.isInteger(image.width) || !Number.isInteger(image.height)) throw new TypeError('image must have integer width and height properties');
+            if (image.width <= 0 || image.height <= 0) throw new RangeError('image dimensions must be positive');
+            if (!(image.data instanceof Uint8Array) && !(image.data instanceof Uint8ClampedArray)) throw new TypeError('image.data must be a Uint8Array or Uint8ClampedArray containing RGBA bytes');
             const expected = image.width * image.height * 4;
-            if (image.data.length !== expected) {
-                throw new RangeError(`image.data must contain exactly ${expected} RGBA bytes`);
-            }
+            if (image.data.length !== expected) throw new RangeError(`image.data must contain exactly ${expected} RGBA bytes`);
         }
-
         function validateTargetSize(image, size) {
-            if (!Array.isArray(size) || size.length !== 2) {
-                throw new TypeError('size must be a [width, height] pair');
-            }
-            const width = Number(size[0]);
-            const height = Number(size[1]);
-            if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
-                throw new RangeError(`target dimensions must be positive integers, got ${size}`);
-            }
-            if (width > image.width || height > image.height) {
-                throw new RangeError(
-                    `BetterPixelArtDownscale only downsizes images; source is ${image.width}x${image.height}, target is ${width}x${height}`,
-                );
-            }
+            if (!Array.isArray(size) || size.length !== 2) throw new TypeError('size must be a [width, height] pair');
+            const width = Number(size[0]), height = Number(size[1]);
+            if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) throw new RangeError(`target dimensions must be positive integers, got ${size}`);
+            if (width > image.width || height > image.height) throw new RangeError(`BetterPixelArtDownscale only downsizes images; source is ${image.width}x${image.height}, target is ${width}x${height}`);
             return [width, height];
         }
-
-        function pixelIndex(width, x, y) {
-            return y * width + x;
-        }
-
-        function packRgba(r, g, b, a) {
-            return ((((r << 24) >>> 0) | (g << 16) | (b << 8) | a) >>> 0);
-        }
-
-        function unpackRgba(code) {
-            return [
-                (code >>> 24) & 0xff,
-                (code >>> 16) & 0xff,
-                (code >>> 8) & 0xff,
-                code & 0xff,
-            ];
-        }
-
+        function pixelIndex(width, x, y) { return y * width + x; }
+        function packRgba(r,g,b,a) { return ((((r << 24) >>> 0) | (g << 16) | (b << 8) | a) >>> 0); }
+        function unpackRgba(code) { return [(code >>> 24)&0xff,(code >>> 16)&0xff,(code >>> 8)&0xff,code&0xff]; }
         function prepareSource(image, options) {
-            const { width, height, data } = image;
-            const count = width * height;
-            const alpha = new Float32Array(count);
-            const opaque = new Uint8Array(count);
-            const outline = new Uint8Array(count);
-            const internalEdge = new Float32Array(count);
-            const codes = new Uint32Array(count);
-            let binaryAlpha = true;
-            let hasTransparent = false;
-
-            for (let i = 0; i < count; i += 1) {
-                const p = i * 4;
-                const aByte = data[p + 3];
-                const a = f32(aByte / 255.0);
-                alpha[i] = a;
-                const isOpaque = a >= options.sourceAlphaThreshold;
-                opaque[i] = isOpaque ? 1 : 0;
-                if (!isOpaque) hasTransparent = true;
-                if (aByte !== 0 && aByte !== 255) binaryAlpha = false;
-                codes[i] = packRgba(data[p], data[p + 1], data[p + 2], aByte);
+            const {width,height,data}=image, count=width*height;
+            const alpha=new Float32Array(count), opaque=new Uint8Array(count), outline=new Uint8Array(count), internalEdge=new Float32Array(count), codes=new Uint32Array(count);
+            let binaryAlpha=true, hasTransparent=false;
+            for (let i=0;i<count;i+=1) {
+                const p=i*4,aByte=data[p+3],a=f32(aByte/255.0); alpha[i]=a;
+                const isOpaque=a>=options.sourceAlphaThreshold; opaque[i]=isOpaque?1:0;
+                if (!isOpaque) hasTransparent=true;
+                if (aByte!==0 && aByte!==255) binaryAlpha=false;
+                codes[i]=packRgba(data[p],data[p+1],data[p+2],aByte);
             }
-
             if (hasTransparent) {
-                for (let y = 0; y < height; y += 1) {
-                    for (let x = 0; x < width; x += 1) {
-                        const i = pixelIndex(width, x, y);
-                        if (!opaque[i]) continue;
-                        const up = y > 0 && opaque[pixelIndex(width, x, y - 1)];
-                        const down = y + 1 < height && opaque[pixelIndex(width, x, y + 1)];
-                        const left = x > 0 && opaque[pixelIndex(width, x - 1, y)];
-                        const right = x + 1 < width && opaque[pixelIndex(width, x + 1, y)];
-                        outline[i] = up && down && left && right ? 0 : 1;
-                    }
+                for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
+                    const i=pixelIndex(width,x,y); if (!opaque[i]) continue;
+                    const up=y>0&&opaque[pixelIndex(width,x,y-1)],down=y+1<height&&opaque[pixelIndex(width,x,y+1)],left=x>0&&opaque[pixelIndex(width,x-1,y)],right=x+1<width&&opaque[pixelIndex(width,x+1,y)];
+                    outline[i]=up&&down&&left&&right?0:1;
                 }
             }
-
-            const neighborDirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-            for (let y = 0; y < height; y += 1) {
-                for (let x = 0; x < width; x += 1) {
-                    const i = pixelIndex(width, x, y);
-                    if (!opaque[i]) continue;
-                    const p = i * 4;
-                    const r = f32(data[p] / 255.0);
-                    const g = f32(data[p + 1] / 255.0);
-                    const b = f32(data[p + 2] / 255.0);
-                    let maxDistance = 0;
-                    for (const [dx, dy] of neighborDirs) {
-                        const nx = x + dx;
-                        const ny = y + dy;
-                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-                        const ni = pixelIndex(width, nx, ny);
-                        if (!opaque[ni]) continue;
-                        const np = ni * 4;
-                        const dr = f32(r - f32(data[np] / 255.0));
-                        const dg = f32(g - f32(data[np + 1] / 255.0));
-                        const db = f32(b - f32(data[np + 2] / 255.0));
-                        const rr = f32(dr * dr);
-                        const gg = f32(dg * dg);
-                        const bb = f32(db * db);
-                        const weighted = f32(f32(0.30 * rr) + f32(0.59 * gg) + f32(0.11 * bb));
-                        const distance = f32(Math.sqrt(weighted));
-                        if (distance > maxDistance) maxDistance = distance;
-                    }
-                    internalEdge[i] = maxDistance >= options.internalEdgeThreshold ? f32(maxDistance) : 0;
+            const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+            for (let y=0;y<height;y+=1) for (let x=0;x<width;x+=1) {
+                const i=pixelIndex(width,x,y); if (!opaque[i]) continue;
+                const p=i*4,r=f32(data[p]/255.0),g=f32(data[p+1]/255.0),b=f32(data[p+2]/255.0); let maxDistance=0;
+                for (const [dx,dy] of dirs) {
+                    const nx=x+dx,ny=y+dy; if(nx<0||nx>=width||ny<0||ny>=height) continue;
+                    const ni=pixelIndex(width,nx,ny); if(!opaque[ni]) continue;
+                    const np=ni*4,dr=f32(r-f32(data[np]/255.0)),dg=f32(g-f32(data[np+1]/255.0)),db=f32(b-f32(data[np+2]/255.0));
+                    const rr=f32(dr*dr),gg=f32(dg*dg),bb=f32(db*db),weighted=f32(f32(0.30*rr)+f32(0.59*gg)+f32(0.11*bb)),distance=f32(Math.sqrt(weighted));
+                    if(distance>maxDistance) maxDistance=distance;
                 }
+                internalEdge[i]=maxDistance>=options.internalEdgeThreshold?f32(maxDistance):0;
             }
-
-            return { width, height, data, alpha, opaque, outline, internalEdge, codes, binaryAlpha };
+            return {width,height,data,alpha,opaque,outline,internalEdge,codes,binaryAlpha};
         }
-
-        function axisCells(sourceLength, targetLength) {
-            const cells = [];
-            const scale = sourceLength / targetLength;
-            for (let targetIndex = 0; targetIndex < targetLength; targetIndex += 1) {
-                const start = targetIndex * scale;
-                const end = (targetIndex + 1) * scale;
-                const first = Math.floor(start);
-                const last = Math.ceil(end);
-                const indices = [];
-                const weights = [];
-                for (let index = first; index < last; index += 1) {
-                    const left = Math.max(index, start);
-                    const right = Math.min(index + 1.0, end);
-                    indices.push(index);
-                    weights.push(f32(Math.max(0.0, right - left)));
-                }
-                cells.push({ indices, weights });
-            }
+        function legacyAxisCells(sourceLength,targetLength) {
+            const cells=[],scale=sourceLength/targetLength;
+            for(let targetIndex=0;targetIndex<targetLength;targetIndex+=1){const start=targetIndex*scale,end=(targetIndex+1)*scale,first=Math.floor(start),last=Math.ceil(end),indices=[],weights=[];for(let index=first;index<last;index+=1){const left=Math.max(index,start),right=Math.min(index+1.0,end);indices.push(index);weights.push(f32(Math.max(0.0,right-left)));}cells.push({indices,weights});}
             return cells;
         }
+        function makeCell(xData,yData){const weights=new Float32Array(xData.indices.length*yData.indices.length);let sum=f32(0),k=0;for(let yi=0;yi<yData.weights.length;yi+=1)for(let xi=0;xi<xData.weights.length;xi+=1){const w=f32(yData.weights[yi]*xData.weights[xi]);weights[k++]=w;sum=f32(sum+w);}return{xIndices:xData.indices,yIndices:yData.indices,weights,area:Number(sum)};}
+        function centerSample(source,targetX,targetY,targetWidth,targetHeight){const x=Math.min(source.width-1,Math.trunc((targetX+0.5)*source.width/targetWidth)),y=Math.min(source.height-1,Math.trunc((targetY+0.5)*source.height/targetHeight));return Boolean(source.opaque[pixelIndex(source.width,x,y)]);}
+        function destinationBoundary(occupancy,width,height){const boundary=new Uint8Array(width*height);for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){const i=pixelIndex(width,x,y);if(!occupancy[i])continue;const up=y>0&&occupancy[pixelIndex(width,x,y-1)],down=y+1<height&&occupancy[pixelIndex(width,x,y+1)],left=x>0&&occupancy[pixelIndex(width,x-1,y)],right=x+1<width&&occupancy[pixelIndex(width,x+1,y)];boundary[i]=up&&down&&left&&right?0:1;}return boundary;}
+        function isClose(a,b){if(!Number.isFinite(a)||!Number.isFinite(b))return a===b;return Math.abs(a-b)<=(1e-12+1e-10*Math.abs(b));}
+        function compareTieKey(a,b,isBoundary){if(a.coverage!==b.coverage)return a.coverage>b.coverage?1:-1;const aEdge=a.outlineSupport+a.edgeSupport,bEdge=b.outlineSupport+b.edgeSupport;if(aEdge!==bEdge)return aEdge>bEdge?1:-1;const[ar,ag,ab]=unpackRgba(a.code),[br,bg,bb]=unpackRgba(b.code),aLum=0.2126*ar+0.7152*ag+0.0722*ab,bLum=0.2126*br+0.7152*bg+0.0722*bb,aDark=isBoundary?-aLum:aLum,bDark=isBoundary?-bLum:bLum;if(aDark!==bDark)return aDark>bDark?1:-1;const aCodeKey=-(a.code>>>0),bCodeKey=-(b.code>>>0);if(aCodeKey===bCodeKey)return 0;return aCodeKey>bCodeKey?1:-1;}
+        function chooseColor(source,cell,isBoundary,options){const grouped=new Map();let wi=0;for(const y of cell.yIndices)for(const x of cell.xIndices){const i=pixelIndex(source.width,x,y),effectiveWeight=Number(f32(cell.weights[wi++]*source.alpha[i]));if(!(effectiveWeight>0))continue;const code=source.codes[i]>>>0;let group=grouped.get(code);if(!group){group={code,coverage:0,outlineSupport:0,edgeSupport:0};grouped.set(code,group);}group.coverage+=effectiveWeight;if(source.outline[i])group.outlineSupport+=effectiveWeight;if(source.internalEdge[i])group.edgeSupport+=effectiveWeight*source.internalEdge[i];}if(grouped.size===0)return[0,0,0,0];const groups=[...grouped.values()].sort((a,b)=>(a.code>>>0)-(b.code>>>0));let restrictToOutline=false;if(isBoundary&&options.preserveOutline){let outlineTotal=0;for(const g of groups)outlineTotal+=g.outlineSupport;restrictToOutline=outlineTotal/Math.max(cell.area,1e-12)>=options.outlineMinCoverage;}const scores=groups.map(g=>{if(restrictToOutline&&!(g.outlineSupport>0))return-Infinity;let score=g.coverage;if(options.preserveInternalEdges)score+=options.internalEdgeWeight*g.edgeSupport;if(isBoundary&&options.preserveOutline)score+=g.outlineSupport;return score;}),bestScore=Math.max(...scores),contenders=[];for(let i=0;i<scores.length;i+=1)if(isClose(scores[i],bestScore))contenders.push(i);let bestIndex=contenders[0];for(let j=1;j<contenders.length;j+=1){const candidate=contenders[j];if(compareTieKey(groups[candidate],groups[bestIndex],isBoundary)>0)bestIndex=candidate;}return unpackRgba(groups[bestIndex].code);}
+        function buildMaps(source,targetSize,options){const[targetWidth,targetHeight]=targetSize,xCells=legacyAxisCells(source.width,targetWidth),yCells=legacyAxisCells(source.height,targetHeight),cells=Array.from({length:targetHeight},()=>Array(targetWidth)),alphaCoverage=new Float32Array(targetWidth*targetHeight),internalSupport=new Float32Array(targetWidth*targetHeight);for(let targetY=0;targetY<targetHeight;targetY+=1)for(let targetX=0;targetX<targetWidth;targetX+=1){const cell=makeCell(xCells[targetX],yCells[targetY]);cells[targetY][targetX]=cell;let alphaSum=f32(0),internalSum=f32(0),wi=0;for(const y of cell.yIndices)for(const x of cell.xIndices){const i=pixelIndex(source.width,x,y),weight=cell.weights[wi++];alphaSum=f32(alphaSum+f32(weight*source.alpha[i]));internalSum=f32(internalSum+f32(weight*source.internalEdge[i]));}const di=pixelIndex(targetWidth,targetX,targetY);alphaCoverage[di]=f32(alphaSum/Math.max(cell.area,1e-12));internalSupport[di]=f32(internalSum/Math.max(cell.area,1e-12));}const occupancy=new Uint8Array(targetWidth*targetHeight);for(let i=0;i<occupancy.length;i+=1)occupancy[i]=alphaCoverage[i]>=options.alphaThreshold?1:0;if(options.preserveThinFeatures){for(let targetY=0;targetY<targetHeight;targetY+=1)for(let targetX=0;targetX<targetWidth;targetX+=1){const i=pixelIndex(targetWidth,targetX,targetY);if(occupancy[i]||alphaCoverage[i]<options.thinFeatureThreshold)continue;occupancy[i]=centerSample(source,targetX,targetY,targetWidth,targetHeight)?1:0;}}return{cells,alphaCoverage,occupancy,boundary:destinationBoundary(occupancy,targetWidth,targetHeight),internalSupport};}
+        function buildOutput(source,targetSize,maps,options){const[targetWidth,targetHeight]=targetSize,output=new Uint8ClampedArray(targetWidth*targetHeight*4),useBinaryAlpha=options.binaryAlpha===null?source.binaryAlpha:options.binaryAlpha;for(let targetY=0;targetY<targetHeight;targetY+=1)for(let targetX=0;targetX<targetWidth;targetX+=1){const i=pixelIndex(targetWidth,targetX,targetY);if(!maps.occupancy[i])continue;const color=chooseColor(source,maps.cells[targetY][targetX],Boolean(maps.boundary[i]),options),p=i*4;output[p]=color[0];output[p+1]=color[1];output[p+2]=color[2];output[p+3]=useBinaryAlpha?255:Math.min(255,Math.max(1,Math.round(Number(maps.alphaCoverage[i])*255.0)));}return{width:targetWidth,height:targetHeight,data:output};}
+        function downscale(image,size,options=undefined){validateImage(image);const normalized=normalizeOptions(options),targetSize=validateTargetSize(image,size);if(targetSize[0]===image.width&&targetSize[1]===image.height)return{width:image.width,height:image.height,data:new Uint8ClampedArray(image.data)};const source=prepareSource(image,normalized),maps=buildMaps(source,targetSize,normalized);return buildOutput(source,targetSize,maps,normalized);}
+        function downscaleByFactor(image,factorX,factorY=factorX,options=undefined){validateImage(image);if(!(factorX>=1)||!(factorY>=1))throw new RangeError('downscale factors must be at least 1.0');return downscale(image,[Math.max(1,Math.floor(image.width/factorX)),Math.max(1,Math.floor(image.height/factorY))],options);}
+        function fromImageData(imageData){return{width:imageData.width,height:imageData.height,data:new Uint8ClampedArray(imageData.data)};}
 
-        function makeCell(xData, yData) {
-            const weights = new Float32Array(xData.indices.length * yData.indices.length);
-            let sum = f32(0);
-            let k = 0;
-            for (let yi = 0; yi < yData.weights.length; yi += 1) {
-                for (let xi = 0; xi < xData.weights.length; xi += 1) {
-                    const w = f32(yData.weights[yi] * xData.weights[xi]);
-                    weights[k++] = w;
-                    sum = f32(sum + w);
-                }
-            }
-            return { xIndices: xData.indices, yIndices: yData.indices, weights, area: Number(sum) };
-        }
+        const SemanticMode=Object.freeze({AUTO:'auto',SPRITE:'sprite',SURFACE:'surface',PATTERN:'pattern'});
+        const ContentHint=Object.freeze({AUTO:'auto',ITEM:'item',BLOCK:'block',ENTITY:'entity'});
+        const CutoutPolicy=Object.freeze({STABLE_PHASE:'stable_phase',BBOX_PHASE_RESCUE:'bbox_phase_rescue',SPANNING_COVERAGE:'spanning_coverage',DENSE_COVERAGE:'dense_coverage',SPRITE_TOPOLOGY:'sprite_topology'});
+        class SemanticOptions{constructor(options={}){this.mode=options.mode??SemanticMode.AUTO;this.contentHint=options.contentHint??options.content_hint??ContentHint.AUTO;this.spriteAlphaThreshold=options.spriteAlphaThreshold??options.sprite_alpha_threshold??0.05;this.spriteThinFeatureThreshold=options.spriteThinFeatureThreshold??options.sprite_thin_feature_threshold??0.125;this.surfacePhaseWeight=options.surfacePhaseWeight??options.surface_phase_weight??0.40;this.surfaceAnchorWeight=options.surfaceAnchorWeight??options.surface_anchor_weight??0.02;this.surfaceCoverageWeight=options.surfaceCoverageWeight??options.surface_coverage_weight??0.08;this.surfaceDarkNoisePenalty=options.surfaceDarkNoisePenalty??options.surface_dark_noise_penalty??0.18;this.surfaceStructureWeight=options.surfaceStructureWeight??options.surface_structure_weight??0.0;this.surfaceDitherSuppression=options.surfaceDitherSuppression??options.surface_dither_suppression??0.80;this.tileAware=options.tileAware??options.tile_aware??true;this.validate();}validate(){if(!Object.values(SemanticMode).includes(this.mode))throw new RangeError(`invalid semantic mode: ${this.mode}`);if(!Object.values(ContentHint).includes(this.contentHint))throw new RangeError(`invalid content hint: ${this.contentHint}`);for(const name of['spriteAlphaThreshold','spriteThinFeatureThreshold','surfacePhaseWeight','surfaceAnchorWeight','surfaceCoverageWeight','surfaceDarkNoisePenalty','surfaceStructureWeight','surfaceDitherSuppression']){const value=Number(this[name]);if(!Number.isFinite(value)||value<0)throw new RangeError(`${name} must be a finite non-negative number`);}if(this.spriteAlphaThreshold>1||this.spriteThinFeatureThreshold>1||this.surfacePhaseWeight>1||this.surfaceDitherSuppression>1)throw new RangeError('threshold/fraction semantic options must not exceed 1');this.tileAware=Boolean(this.tileAware);return this;}}
+        function normalizeSemanticOptions(options){return options instanceof SemanticOptions?options:new SemanticOptions(options??{});}
+        function cloneImage(image){return{width:image.width,height:image.height,data:new Uint8ClampedArray(image.data)};}
+        function nearestResize(image,size){const[targetWidth,targetHeight]=validateTargetSize(image,size),output=new Uint8ClampedArray(targetWidth*targetHeight*4);for(let ty=0;ty<targetHeight;ty+=1){const sy=Math.min(image.height-1,Math.trunc((ty+0.5)*image.height/targetHeight));for(let tx=0;tx<targetWidth;tx+=1){const sx=Math.min(image.width-1,Math.trunc((tx+0.5)*image.width/targetWidth)),sp=pixelIndex(image.width,sx,sy)*4,tp=pixelIndex(targetWidth,tx,ty)*4;output[tp]=image.data[sp];output[tp+1]=image.data[sp+1];output[tp+2]=image.data[sp+2];output[tp+3]=image.data[sp+3];}}return{width:targetWidth,height:targetHeight,data:output};}
+        function shiftScalar(array,width,height,dy,dx,wrap){const output=new Float64Array(array.length);for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){let sourceX=x-dx,sourceY=y-dy;if(wrap){sourceX=((sourceX%width)+width)%width;sourceY=((sourceY%height)+height)%height;}else{sourceX=Math.max(0,Math.min(width-1,sourceX));sourceY=Math.max(0,Math.min(height-1,sourceY));}output[pixelIndex(width,x,y)]=array[pixelIndex(width,sourceX,sourceY)];}return output;}
+        function box3(array,width,height,wrap){const output=new Float64Array(array.length);for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){let sum=0;for(let dy=-1;dy<=1;dy+=1)for(let dx=-1;dx<=1;dx+=1){let sx=x+dx,sy=y+dy;if(wrap){sx=((sx%width)+width)%width;sy=((sy%height)+height)%height;}else{sx=Math.max(0,Math.min(width-1,sx));sy=Math.max(0,Math.min(height-1,sy));}sum+=array[pixelIndex(width,sx,sy)];}output[pixelIndex(width,x,y)]=sum/9.0;}return output;}
+        function featureMaps(image,tileAware){const{width,height,data}=image,count=width*height,alpha=new Float64Array(count),opaque=new Uint8Array(count),luminance=new Float64Array(count);let opaqueCount=0;for(let i=0;i<count;i+=1){const p=i*4,a=data[p+3]/255.0;alpha[i]=a;const isOpaque=a>(1.0/255.0);opaque[i]=isOpaque?1:0;if(isOpaque)opaqueCount+=1;luminance[i]=0.2126*(data[p]/255.0)+0.7152*(data[p+1]/255.0)+0.0722*(data[p+2]/255.0);}const wrap=Boolean(tileAware&&opaqueCount/count>0.98),left=shiftScalar(luminance,width,height,0,-1,wrap),right=shiftScalar(luminance,width,height,0,1,wrap),up=shiftScalar(luminance,width,height,-1,0,wrap),down=shiftScalar(luminance,width,height,1,0,wrap),gx=new Float64Array(count),gy=new Float64Array(count),gx2=new Float64Array(count),gy2=new Float64Array(count),gxy=new Float64Array(count);for(let i=0;i<count;i+=1){gx[i]=0.5*(right[i]-left[i]);gy[i]=0.5*(down[i]-up[i]);gx2[i]=gx[i]*gx[i];gy2[i]=gy[i]*gy[i];gxy[i]=gx[i]*gy[i];}const jxx=box3(gx2,width,height,wrap),jyy=box3(gy2,width,height,wrap),jxy=box3(gxy,width,height,wrap),lum2=new Float64Array(count);for(let i=0;i<count;i+=1)lum2[i]=luminance[i]*luminance[i];const mean=box3(luminance,width,height,wrap),mean2=box3(lum2,width,height,wrap),left2=shiftScalar(luminance,width,height,0,-2,wrap),right2=shiftScalar(luminance,width,height,0,2,wrap),up2=shiftScalar(luminance,width,height,-2,0,wrap),down2=shiftScalar(luminance,width,height,2,0,wrap),structure=new Float64Array(count),texture=new Float64Array(count),dither=new Float64Array(count);for(let i=0;i<count;i+=1){if(!opaque[i])continue;const coherence=Math.sqrt((jxx[i]-jyy[i])**2+4.0*jxy[i]**2)/(jxx[i]+jyy[i]+1e-9),gradient=Math.sqrt(gx[i]*gx[i]+gy[i]*gy[i]),oneStep=(Math.abs(luminance[i]-left[i])+Math.abs(luminance[i]-right[i])+Math.abs(luminance[i]-up[i])+Math.abs(luminance[i]-down[i]))/4.0,twoStep=(Math.abs(luminance[i]-left2[i])+Math.abs(luminance[i]-right2[i])+Math.abs(luminance[i]-up2[i])+Math.abs(luminance[i]-down2[i]))/4.0,recurrence=Math.max(0.0,Math.min(1.0,1.0-4.0*twoStep));dither[i]=Math.max(0.0,Math.min(1.0,4.0*oneStep))*recurrence*(1.0-0.55*coherence);const variance=Math.max(0.0,mean2[i]-mean[i]*mean[i]);texture[i]=Math.max(0.0,Math.min(1.0,4.0*Math.sqrt(variance)));structure[i]=Math.max(0.0,Math.min(1.0,5.0*gradient))*coherence*(1.0-0.80*dither[i]);}return{alpha,opaque,luminance,structure,texture,dither,opaqueRatio:opaqueCount/count};}
+        function semanticBboxStats(mask,width,height){let x0=width,x1=0,y0=height,y1=0,count=0,top=false,bottom=false,left=false,right=false;for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){if(!mask[pixelIndex(width,x,y)])continue;count+=1;x0=Math.min(x0,x);x1=Math.max(x1,x+1);y0=Math.min(y0,y);y1=Math.max(y1,y+1);if(y===0)top=true;if(y===height-1)bottom=true;if(x===0)left=true;if(x===width-1)right=true;}if(!count)return{fill:0,areaRatio:0,touches:0,x0:0,y0:0};const bboxArea=Math.max(1,(x1-x0)*(y1-y0));return{fill:count/bboxArea,areaRatio:bboxArea/(width*height),touches:Number(top)+Number(bottom)+Number(left)+Number(right),x0,y0};}
+        function analyze(image,options=undefined){validateImage(image);const normalized=normalizeSemanticOptions(options),maps=featureMaps(image,normalized.tileAware),bbox=semanticBboxStats(maps.opaque,image.width,image.height);let mode;if(normalized.mode!==SemanticMode.AUTO)mode=normalized.mode;else if(normalized.contentHint===ContentHint.ITEM)mode=SemanticMode.SPRITE;else if(normalized.contentHint===ContentHint.BLOCK)mode=maps.opaqueRatio>0.98?SemanticMode.SURFACE:SemanticMode.PATTERN;else if(normalized.contentHint===ContentHint.ENTITY)mode=maps.opaqueRatio>0.98?SemanticMode.SURFACE:SemanticMode.SPRITE;else if(maps.opaqueRatio>0.94)mode=SemanticMode.SURFACE;else if(bbox.areaRatio>0.82&&bbox.touches>=2&&bbox.fill<0.72)mode=SemanticMode.PATTERN;else mode=SemanticMode.SPRITE;return{rgba:image.data,width:image.width,height:image.height,alpha:maps.alpha,opaque:maps.opaque,luminance:maps.luminance,structure:maps.structure,texture:maps.texture,dither:maps.dither,opaqueRatio:maps.opaqueRatio,bboxFillRatio:bbox.fill,bboxAreaRatio:bbox.areaRatio,edgeTouchCount:bbox.touches,mode};}
+        function rgbToOklab(r,g,b){let rr=r/255.0,gg=g/255.0,bb=b/255.0;rr=rr<=0.04045?rr/12.92:((rr+0.055)/1.055)**2.4;gg=gg<=0.04045?gg/12.92:((gg+0.055)/1.055)**2.4;bb=bb<=0.04045?bb/12.92:((bb+0.055)/1.055)**2.4;const l=Math.cbrt(0.4122214708*rr+0.5363325363*gg+0.0514459929*bb),m=Math.cbrt(0.2119034982*rr+0.6806995451*gg+0.1073969566*bb),s=Math.cbrt(0.0883024619*rr+0.2817188376*gg+0.6299787005*bb);return[0.2104542553*l+0.7936177850*m-0.0040720468*s,1.9779984951*l-2.4285922050*m+0.4505937099*s,0.0259040371*l+0.7827717662*m-0.8086757660*s];}
+        function semanticAxisCells(sourceLength,targetLength){const scale=sourceLength/targetLength,cells=[];for(let index=0;index<targetLength;index+=1){const start=index*scale,end=(index+1)*scale,indices=[],weights=[];for(let sourceIndex=Math.floor(start);sourceIndex<Math.ceil(end);sourceIndex+=1){indices.push(sourceIndex);weights.push(Math.max(0.0,Math.min(sourceIndex+1.0,end)-Math.max(sourceIndex,start)));}cells.push({indices,weights});}return cells;}
+        function spriteDownscale(image,size,options=undefined){const normalized=normalizeSemanticOptions(options);return downscale(image,size,{alphaThreshold:normalized.spriteAlphaThreshold,thinFeatureThreshold:normalized.spriteThinFeatureThreshold,preserveThinFeatures:true,preserveOutline:true,preserveInternalEdges:true,internalEdgeWeight:0.0});}
+        function surfaceDownscale(analysis,size,options=undefined){const normalized=normalizeSemanticOptions(options),sourceWidth=analysis.width,sourceHeight=analysis.height,[targetWidth,targetHeight]=size,xCells=semanticAxisCells(sourceWidth,targetWidth),yCells=semanticAxisCells(sourceHeight,targetHeight),output=new Uint8ClampedArray(targetWidth*targetHeight*4);let binaryAlpha=true;for(let i=3;i<analysis.rgba.length;i+=4){const a=analysis.rgba[i];if(a!==0&&a!==255){binaryAlpha=false;break;}}for(let ty=0;ty<targetHeight;ty+=1){const yCell=yCells[ty];for(let tx=0;tx<targetWidth;tx+=1){const xCell=xCells[tx],groups=new Map(),labValues=[],labWeights=[],structureValues=[],textureValues=[],ditherValues=[];let weightSum=0,alphaCoverageSum=0,areaSum=0;for(let yi=0;yi<yCell.indices.length;yi+=1){const sy=yCell.indices[yi];for(let xi=0;xi<xCell.indices.length;xi+=1){const sx=xCell.indices[xi],weight=yCell.weights[yi]*xCell.weights[xi];areaSum+=weight;const index=pixelIndex(sourceWidth,sx,sy),alpha=analysis.alpha[index];alphaCoverageSum+=weight*alpha;const effective=weight*alpha;if(!(effective>0))continue;const p=index*4,r=analysis.rgba[p],g=analysis.rgba[p+1],b=analysis.rgba[p+2],code=(r<<16)|(g<<8)|b,lab=rgbToOklab(r,g,b);labValues.push(lab);labWeights.push(effective);structureValues.push(analysis.structure[index]);textureValues.push(analysis.texture[index]);ditherValues.push(analysis.dither[index]);weightSum+=effective;let group=groups.get(code);if(!group){group={code,r,g,b,lab,coverageWeight:0,structureWeight:0};groups.set(code,group);}group.coverageWeight+=effective;group.structureWeight+=effective*analysis.structure[index];}}if(!(weightSum>0)||groups.size===0)continue;const desired=[0,0,0];for(let i=0;i<labValues.length;i+=1){desired[0]+=labValues[i][0]*labWeights[i];desired[1]+=labValues[i][1]*labWeights[i];desired[2]+=labValues[i][2]*labWeights[i];}desired[0]/=weightSum;desired[1]/=weightSum;desired[2]/=weightSum;let cellStructure=0,cellTexture=0,cellDither=0;for(let i=0;i<labWeights.length;i+=1){cellStructure+=structureValues[i]*labWeights[i];cellTexture+=textureValues[i]*labWeights[i];cellDither+=ditherValues[i]*labWeights[i];}cellStructure/=weightSum;cellTexture/=weightSum;cellDither/=weightSum;const sx=Math.min(sourceWidth-1,Math.trunc((tx+0.5)*sourceWidth/targetWidth)),sy=Math.min(sourceHeight-1,Math.trunc((ty+0.5)*sourceHeight/targetHeight)),anchorP=pixelIndex(sourceWidth,sx,sy)*4,anchorR=analysis.rgba[anchorP],anchorG=analysis.rgba[anchorP+1],anchorB=analysis.rgba[anchorP+2],anchorCode=(anchorR<<16)|(anchorG<<8)|anchorB,anchorLab=rgbToOklab(anchorR,anchorG,anchorB);desired[0]=(1-normalized.surfacePhaseWeight)*desired[0]+normalized.surfacePhaseWeight*anchorLab[0];desired[1]=(1-normalized.surfacePhaseWeight)*desired[1]+normalized.surfacePhaseWeight*anchorLab[1];desired[2]=(1-normalized.surfacePhaseWeight)*desired[2]+normalized.surfacePhaseWeight*anchorLab[2];const lightness=labValues.map(lab=>lab[0]).sort((a,b)=>a-b),middle=Math.floor(lightness.length/2),medianLightness=lightness.length%2?lightness[middle]:0.5*(lightness[middle-1]+lightness[middle]);let best=null,bestScore=Infinity;const candidates=[...groups.values()].sort((a,b)=>a.code-b.code);for(const group of candidates){const coverage=group.coverageWeight/weightSum,structureSupport=group.structureWeight/weightSum,dL=group.lab[0]-desired[0],da=group.lab[1]-desired[1],db=group.lab[2]-desired[2];let score=Math.sqrt(1.35*dL*dL+da*da+db*db);score-=normalized.surfaceCoverageWeight*coverage;if(group.code===anchorCode)score-=normalized.surfaceAnchorWeight;const coherent=cellStructure*(1-normalized.surfaceDitherSuppression*cellDither);score-=normalized.surfaceStructureWeight*coherent*structureSupport;const darkness=Math.max(0,medianLightness-group.lab[0]);score+=normalized.surfaceDarkNoisePenalty*cellTexture*(1-cellStructure)*(1-coverage)*darkness;if(score<bestScore){bestScore=score;best=group;}}const targetP=pixelIndex(targetWidth,tx,ty)*4;output[targetP]=best.r;output[targetP+1]=best.g;output[targetP+2]=best.b;const alphaCoverage=alphaCoverageSum/Math.max(areaSum,1e-12);output[targetP+3]=binaryAlpha&&alphaCoverage>=0.5?255:Math.max(0,Math.min(255,Math.round(alphaCoverage*255.0)));}}return{width:targetWidth,height:targetHeight,data:output};}
+        function inferContentHint(sourcePath){if(typeof sourcePath!=='string')return ContentHint.AUTO;const normalized=sourcePath.replaceAll('\\','/').toLowerCase();if(normalized.includes('/textures/item/'))return ContentHint.ITEM;if(normalized.includes('/textures/block/'))return ContentHint.BLOCK;if(normalized.includes('/textures/entity/'))return ContentHint.ENTITY;return ContentHint.AUTO;}
+        function downscaleSemantic(image,size,options=undefined){validateImage(image);const normalized=normalizeSemanticOptions(options),target=validateTargetSize(image,size);if(target[0]===image.width&&target[1]===image.height)return cloneImage(image);const analysis=analyze(image,normalized);if(analysis.mode===SemanticMode.PATTERN)return nearestResize(image,target);if(analysis.mode===SemanticMode.SPRITE)return spriteDownscale(image,target,normalized);return surfaceDownscale(analysis,target,normalized);}
+        function alphaPatternStats(visible,width,height){let horizontalDiff=0,verticalDiff=0,horizontalSame2=0,verticalSame2=0;const count=width*height;for(let y=0;y<height;y+=1)for(let x=0;x<width;x+=1){const value=visible[pixelIndex(width,x,y)];if(value!==visible[pixelIndex(width,(x-1+width)%width,y)])horizontalDiff+=1;if(value!==visible[pixelIndex(width,x,(y-1+height)%height)])verticalDiff+=1;if(value===visible[pixelIndex(width,(x-2+width)%width,y)])horizontalSame2+=1;if(value===visible[pixelIndex(width,x,(y-2+height)%height)])verticalSame2+=1;}return{transition:0.5*(horizontalDiff/count+verticalDiff/count),recurrence:0.5*(horizontalSame2/count+verticalSame2/count)};}
+        function phaseDownscale2x(image,size,phaseX,phaseY){const[targetWidth,targetHeight]=size;if(image.width!==targetWidth*2||image.height!==targetHeight*2)return nearestResize(image,size);const output=new Uint8ClampedArray(targetWidth*targetHeight*4);for(let ty=0;ty<targetHeight;ty+=1)for(let tx=0;tx<targetWidth;tx+=1){const sx=phaseX+tx*2,sy=phaseY+ty*2,sp=pixelIndex(image.width,sx,sy)*4,tp=pixelIndex(targetWidth,tx,ty)*4;output[tp]=image.data[sp];output[tp+1]=image.data[sp+1];output[tp+2]=image.data[sp+2];output[tp+3]=image.data[sp+3];}return{width:targetWidth,height:targetHeight,data:output};}
+        function coverageDownscale(image,size,occupancyThreshold){const[targetWidth,targetHeight]=size,xCells=semanticAxisCells(image.width,targetWidth),yCells=semanticAxisCells(image.height,targetHeight),output=new Uint8ClampedArray(targetWidth*targetHeight*4);for(let ty=0;ty<targetHeight;ty+=1){const yCell=yCells[ty];for(let tx=0;tx<targetWidth;tx+=1){const xCell=xCells[tx],visibleColors=new Map();let weightedAlpha=0,weightSum=0;for(let yi=0;yi<yCell.indices.length;yi+=1){const sy=yCell.indices[yi];for(let xi=0;xi<xCell.indices.length;xi+=1){const sx=xCell.indices[xi],weight=yCell.weights[yi]*xCell.weights[xi];weightSum+=weight;const p=pixelIndex(image.width,sx,sy)*4,alpha=image.data[p+3]/255.0;weightedAlpha+=weight*alpha;if(!(alpha>0))continue;const code=(image.data[p]<<16)|(image.data[p+1]<<8)|image.data[p+2];visibleColors.set(code,(visibleColors.get(code)??0)+1);}}if(weightedAlpha/Math.max(weightSum,1e-12)<occupancyThreshold||visibleColors.size===0)continue;const sourceX=Math.min(image.width-1,Math.trunc((tx+0.5)*image.width/targetWidth)),sourceY=Math.min(image.height-1,Math.trunc((ty+0.5)*image.height/targetHeight)),sourceP=pixelIndex(image.width,sourceX,sourceY)*4;let r,g,b;if(image.data[sourceP+3]>0){r=image.data[sourceP];g=image.data[sourceP+1];b=image.data[sourceP+2];}else{let bestCode=null,bestCount=-1;for(const[code,count]of[...visibleColors.entries()].sort((a,bEntry)=>a[0]-bEntry[0]))if(count>bestCount){bestCode=code;bestCount=count;}r=(bestCode>>16)&255;g=(bestCode>>8)&255;b=bestCode&255;}const tp=pixelIndex(targetWidth,tx,ty)*4;output[tp]=r;output[tp+1]=g;output[tp+2]=b;output[tp+3]=255;}}return{width:targetWidth,height:targetHeight,data:output};}
+        function analyzeCutout(image,size){validateImage(image);const target=validateTargetSize(image,size),visible=new Uint8Array(image.width*image.height);let visibleCount=0,ghostCount=0;for(let i=0;i<visible.length;i+=1){const alphaByte=image.data[i*4+3];if(alphaByte>0){visible[i]=1;visibleCount+=1;if(alphaByte<=4)ghostCount+=1;}}const visibleRatio=visibleCount/visible.length,ghostAlphaRatio=ghostCount/visible.length,bbox=semanticBboxStats(visible,image.width,image.height),pattern=alphaPatternStats(visible,image.width,image.height),exact2x=image.width===target[0]*2&&image.height===target[1]*2;let policy;if(ghostAlphaRatio>0.02)policy=CutoutPolicy.STABLE_PHASE;else if(bbox.areaRatio<=0.16){const stable=nearestResize(image,target);let stableVisible=false;for(let i=3;i<stable.data.length;i+=4)if(stable.data[i]>0){stableVisible=true;break;}if(bbox.touches>=2)policy=CutoutPolicy.SPANNING_COVERAGE;else if(stableVisible||!exact2x)policy=CutoutPolicy.STABLE_PHASE;else policy=CutoutPolicy.BBOX_PHASE_RESCUE;}else if(pattern.transition<=0.30)policy=CutoutPolicy.STABLE_PHASE;else if(visibleRatio<=0.55){if(bbox.areaRatio>=0.95&&pattern.transition<=0.41)policy=CutoutPolicy.STABLE_PHASE;else policy=CutoutPolicy.DENSE_COVERAGE;}else policy=CutoutPolicy.SPRITE_TOPOLOGY;return{visibleRatio,ghostAlphaRatio,bboxFillRatio:bbox.fill,bboxAreaRatio:bbox.areaRatio,bboxMinX:bbox.x0,bboxMinY:bbox.y0,edgeTouchCount:bbox.touches,alphaTransition:pattern.transition,alphaRecurrence:pattern.recurrence,policy};}
+        function downscaleCutout(image,size,options=undefined){validateImage(image);const normalized=options===undefined?new SemanticOptions({contentHint:ContentHint.BLOCK}):normalizeSemanticOptions(options),target=validateTargetSize(image,size),cutout=analyzeCutout(image,target);if(cutout.policy===CutoutPolicy.STABLE_PHASE)return nearestResize(image,target);if(cutout.policy===CutoutPolicy.SPANNING_COVERAGE)return coverageDownscale(image,target,0.25);if(cutout.policy===CutoutPolicy.DENSE_COVERAGE)return coverageDownscale(image,target,0.50);if(cutout.policy===CutoutPolicy.SPRITE_TOPOLOGY)return spriteDownscale(image,target,normalized);return phaseDownscale2x(image,target,cutout.bboxMinX&1,cutout.bboxMinY&1);}
+        function downscaleSemanticV3(image,size,options=undefined){validateImage(image);const normalized=normalizeSemanticOptions(options),target=validateTargetSize(image,size);if(target[0]===image.width&&target[1]===image.height)return cloneImage(image);const analysis=analyze(image,normalized);if(analysis.mode===SemanticMode.PATTERN)return downscaleCutout(image,target,normalized);if(analysis.mode===SemanticMode.SPRITE)return spriteDownscale(image,target,normalized);return surfaceDownscale(analysis,target,normalized);}
+        function downscaleSemanticV3ByFactor(image,factor=2.0,options=undefined){validateImage(image);if(!Number.isFinite(factor)||factor<1.0)throw new RangeError('factor must be a finite value of at least 1');return downscaleSemanticV3(image,[Math.max(1,Math.floor(image.width/factor)),Math.max(1,Math.floor(image.height/factor))],options);}
 
-        function centerSample(source, targetX, targetY, targetWidth, targetHeight) {
-            const x = Math.min(source.width - 1, Math.trunc((targetX + 0.5) * source.width / targetWidth));
-            const y = Math.min(source.height - 1, Math.trunc((targetY + 0.5) * source.height / targetHeight));
-            return Boolean(source.opaque[pixelIndex(source.width, x, y)]);
-        }
-
-        function destinationBoundary(occupancy, width, height) {
-            const boundary = new Uint8Array(width * height);
-            for (let y = 0; y < height; y += 1) {
-                for (let x = 0; x < width; x += 1) {
-                    const i = pixelIndex(width, x, y);
-                    if (!occupancy[i]) continue;
-                    const up = y > 0 && occupancy[pixelIndex(width, x, y - 1)];
-                    const down = y + 1 < height && occupancy[pixelIndex(width, x, y + 1)];
-                    const left = x > 0 && occupancy[pixelIndex(width, x - 1, y)];
-                    const right = x + 1 < width && occupancy[pixelIndex(width, x + 1, y)];
-                    boundary[i] = up && down && left && right ? 0 : 1;
-                }
-            }
-            return boundary;
-        }
-
-        function chooseColor(source, cell, isBoundary, options) {
-            const grouped = new Map();
-            let wi = 0;
-            for (const y of cell.yIndices) {
-                for (const x of cell.xIndices) {
-                    const i = pixelIndex(source.width, x, y);
-                    const effectiveWeight = Number(f32(cell.weights[wi++] * source.alpha[i]));
-                    if (!(effectiveWeight > 0)) continue;
-                    const code = source.codes[i] >>> 0;
-                    let group = grouped.get(code);
-                    if (!group) {
-                        group = { code, coverage: 0, outlineSupport: 0, edgeSupport: 0 };
-                        grouped.set(code, group);
-                    }
-                    group.coverage += effectiveWeight;
-                    if (source.outline[i]) group.outlineSupport += effectiveWeight;
-                    if (source.internalEdge[i]) group.edgeSupport += effectiveWeight * source.internalEdge[i];
-                }
-            }
-
-            if (grouped.size === 0) return [0, 0, 0, 0];
-            const groups = [...grouped.values()].sort((a, b) => (a.code >>> 0) - (b.code >>> 0));
-
-            let restrictToOutline = false;
-            if (isBoundary && options.preserveOutline) {
-                let outlineTotal = 0;
-                for (const group of groups) outlineTotal += group.outlineSupport;
-                restrictToOutline = outlineTotal / Math.max(cell.area, 1e-12) >= options.outlineMinCoverage;
-            }
-
-            const scores = groups.map((group) => {
-                if (restrictToOutline && !(group.outlineSupport > 0)) return -Infinity;
-                let score = group.coverage;
-                if (options.preserveInternalEdges) score += options.internalEdgeWeight * group.edgeSupport;
-                if (isBoundary && options.preserveOutline) score += group.outlineSupport;
-                return score;
-            });
-            const bestScore = Math.max(...scores);
-            const contenders = [];
-            for (let index = 0; index < scores.length; index += 1) {
-                if (isClose(scores[index], bestScore)) contenders.push(index);
-            }
-
-            let bestIndex = contenders[0];
-            if (contenders.length > 1) {
-                for (let j = 1; j < contenders.length; j += 1) {
-                    const candidate = contenders[j];
-                    if (compareTieKey(groups[candidate], groups[bestIndex], isBoundary) > 0) bestIndex = candidate;
-                }
-            }
-            return unpackRgba(groups[bestIndex].code);
-        }
-
-        function isClose(a, b) {
-            if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b;
-            return Math.abs(a - b) <= (1e-12 + 1e-10 * Math.abs(b));
-        }
-
-        function compareTieKey(a, b, isBoundary) {
-            if (a.coverage !== b.coverage) return a.coverage > b.coverage ? 1 : -1;
-            const aEdge = a.outlineSupport + a.edgeSupport;
-            const bEdge = b.outlineSupport + b.edgeSupport;
-            if (aEdge !== bEdge) return aEdge > bEdge ? 1 : -1;
-            const [ar, ag, ab] = unpackRgba(a.code);
-            const [br, bg, bb] = unpackRgba(b.code);
-            const aLum = 0.2126 * ar + 0.7152 * ag + 0.0722 * ab;
-            const bLum = 0.2126 * br + 0.7152 * bg + 0.0722 * bb;
-            const aDark = isBoundary ? -aLum : aLum;
-            const bDark = isBoundary ? -bLum : bLum;
-            if (aDark !== bDark) return aDark > bDark ? 1 : -1;
-            const aCodeKey = -(a.code >>> 0);
-            const bCodeKey = -(b.code >>> 0);
-            if (aCodeKey === bCodeKey) return 0;
-            return aCodeKey > bCodeKey ? 1 : -1;
-        }
-
-        function buildMaps(source, targetSize, options) {
-            const [targetWidth, targetHeight] = targetSize;
-            const xCells = axisCells(source.width, targetWidth);
-            const yCells = axisCells(source.height, targetHeight);
-            const cells = Array.from({ length: targetHeight }, () => Array(targetWidth));
-            const alphaCoverage = new Float32Array(targetWidth * targetHeight);
-            const internalSupport = new Float32Array(targetWidth * targetHeight);
-
-            for (let targetY = 0; targetY < targetHeight; targetY += 1) {
-                for (let targetX = 0; targetX < targetWidth; targetX += 1) {
-                    const cell = makeCell(xCells[targetX], yCells[targetY]);
-                    cells[targetY][targetX] = cell;
-                    let alphaSum = f32(0);
-                    let internalSum = f32(0);
-                    let wi = 0;
-                    for (const y of cell.yIndices) {
-                        for (const x of cell.xIndices) {
-                            const i = pixelIndex(source.width, x, y);
-                            const weight = cell.weights[wi++];
-                            alphaSum = f32(alphaSum + f32(weight * source.alpha[i]));
-                            internalSum = f32(internalSum + f32(weight * source.internalEdge[i]));
-                        }
-                    }
-                    const di = pixelIndex(targetWidth, targetX, targetY);
-                    alphaCoverage[di] = f32(alphaSum / Math.max(cell.area, 1e-12));
-                    internalSupport[di] = f32(internalSum / Math.max(cell.area, 1e-12));
-                }
-            }
-
-            const occupancy = new Uint8Array(targetWidth * targetHeight);
-            for (let i = 0; i < occupancy.length; i += 1) {
-                occupancy[i] = alphaCoverage[i] >= options.alphaThreshold ? 1 : 0;
-            }
-
-            if (options.preserveThinFeatures) {
-                for (let targetY = 0; targetY < targetHeight; targetY += 1) {
-                    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
-                        const i = pixelIndex(targetWidth, targetX, targetY);
-                        if (occupancy[i]) continue;
-                        if (alphaCoverage[i] < options.thinFeatureThreshold) continue;
-                        occupancy[i] = centerSample(source, targetX, targetY, targetWidth, targetHeight) ? 1 : 0;
-                    }
-                }
-            }
-
-            const boundary = destinationBoundary(occupancy, targetWidth, targetHeight);
-            return { cells, alphaCoverage, occupancy, boundary, internalSupport };
-        }
-
-        function buildOutput(source, targetSize, maps, options) {
-            const [targetWidth, targetHeight] = targetSize;
-            const output = new Uint8ClampedArray(targetWidth * targetHeight * 4);
-            const useBinaryAlpha = options.binaryAlpha === null ? source.binaryAlpha : options.binaryAlpha;
-
-            for (let targetY = 0; targetY < targetHeight; targetY += 1) {
-                for (let targetX = 0; targetX < targetWidth; targetX += 1) {
-                    const i = pixelIndex(targetWidth, targetX, targetY);
-                    if (!maps.occupancy[i]) continue;
-                    const color = chooseColor(source, maps.cells[targetY][targetX], Boolean(maps.boundary[i]), options);
-                    const p = i * 4;
-                    output[p] = color[0];
-                    output[p + 1] = color[1];
-                    output[p + 2] = color[2];
-                    if (useBinaryAlpha) {
-                        output[p + 3] = 255;
-                    } else {
-                        const alpha = Math.min(255, Math.max(1, Math.round(Number(maps.alphaCoverage[i]) * 255.0)));
-                        output[p + 3] = alpha;
-                    }
-                }
-            }
-            return { width: targetWidth, height: targetHeight, data: output };
-        }
-
-        function downscale(image, size, options = undefined) {
-            validateImage(image);
-            const normalized = normalizeOptions(options);
-            const targetSize = validateTargetSize(image, size);
-            if (targetSize[0] === image.width && targetSize[1] === image.height) {
-                return { width: image.width, height: image.height, data: new Uint8ClampedArray(image.data) };
-            }
-            const source = prepareSource(image, normalized);
-            const maps = buildMaps(source, targetSize, normalized);
-            return buildOutput(source, targetSize, maps, normalized);
-        }
-
-        function downscaleByFactor(image, factorX, factorY = factorX, options = undefined) {
-            validateImage(image);
-            if (!(factorX >= 1) || !(factorY >= 1)) {
-                throw new RangeError('downscale factors must be at least 1.0');
-            }
-            const width = Math.max(1, Math.floor(image.width / factorX));
-            const height = Math.max(1, Math.floor(image.height / factorY));
-            return downscale(image, [width, height], options);
-        }
-
-        function edgeLayer(image, size, options = undefined, edgeOptions = {}) {
-            validateImage(image);
-            const normalized = normalizeOptions(options);
-            const includeOutline = edgeOptions.includeOutline ?? edgeOptions.include_outline ?? true;
-            const includeInternalEdges = edgeOptions.includeInternalEdges ?? edgeOptions.include_internal_edges ?? true;
-            const targetSize = validateTargetSize(image, size);
-            const source = prepareSource(image, normalized);
-            const maps = buildMaps(source, targetSize, normalized);
-            const [targetWidth, targetHeight] = targetSize;
-            const output = new Uint8ClampedArray(targetWidth * targetHeight * 4);
-
-            for (let y = 0; y < targetHeight; y += 1) {
-                for (let x = 0; x < targetWidth; x += 1) {
-                    const i = pixelIndex(targetWidth, x, y);
-                    if (!maps.occupancy[i]) continue;
-                    const isOutline = includeOutline && Boolean(maps.boundary[i]);
-                    const isInternal = includeInternalEdges && maps.internalSupport[i] >= normalized.internalEdgeThreshold;
-                    if (!(isOutline || isInternal)) continue;
-                    const color = chooseColor(source, maps.cells[y][x], isOutline, normalized);
-                    const p = i * 4;
-                    output[p] = color[0];
-                    output[p + 1] = color[1];
-                    output[p + 2] = color[2];
-                    output[p + 3] = 255;
-                }
-            }
-            return { width: targetWidth, height: targetHeight, data: output };
-        }
-
-        function fromImageData(imageData) {
-            return { width: imageData.width, height: imageData.height, data: new Uint8ClampedArray(imageData.data) };
-        }
-
-        function toImageData(image) {
-            validateImage(image);
-            if (typeof ImageData === 'undefined') {
-                throw new Error('ImageData is not available in this runtime');
-            }
-            return new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
-        }
-
-        return {
-            DownscaleOptions,
-            downscale,
-            downscaleByFactor,
-            edgeLayer,
-            fromImageData,
-            toImageData,
-        };
+        return {DownscaleOptions,downscale,downscaleByFactor,fromImageData,SemanticMode,ContentHint,SemanticOptions,CutoutPolicy,analyze,analyzeCutout,downscaleSemantic,downscaleCutout,downscaleSemanticV3,downscaleSemanticV3ByFactor,inferContentHint};
     })();
 
-    const DEFAULT_SETTINGS = Object.freeze({
-        method: 'better_pixel_art',
-        advanced: false,
-        alphaThreshold: 0.50,
-        sourceAlphaThreshold: 1.0 / 255.0,
-        preserveThinFeatures: true,
-        thinFeatureThreshold: 0.125,
-        preserveOutline: true,
-        preserveInternalEdges: true,
-        outlineMinCoverage: 0.02,
-        internalEdgeThreshold: 0.10,
-        internalEdgeWeight: 0.65,
-        binaryAlpha: 'auto',
-    });
+    const DEFAULT_SETTINGS = Object.freeze({method:'semantic_v3',contentHint:'auto',advanced:false,alphaThreshold:0.50,sourceAlphaThreshold:1.0/255.0,preserveThinFeatures:true,thinFeatureThreshold:0.125,preserveOutline:true,preserveInternalEdges:true,outlineMinCoverage:0.02,internalEdgeThreshold:0.10,internalEdgeWeight:0.65,binaryAlpha:'auto'});
+    function addTranslations(){if(typeof Language==='undefined'||typeof Language.addTranslations!=='function')return;Language.addTranslations('en',{'bpad.resize.method':'Downscale Method','bpad.resize.method.semantic':'Semantic v3 (Recommended)','bpad.resize.method.legacy':'Legacy Edge-Aware v2','bpad.resize.method.native':'Native Nearest','bpad.resize.content_hint':'Content Type','bpad.resize.content_hint.auto':'Auto Detect','bpad.resize.content_hint.item':'Item / Sprite','bpad.resize.content_hint.block':'Block / Surface','bpad.resize.content_hint.entity':'Entity','bpad.resize.advanced':'Advanced Legacy v2 Settings','bpad.resize.preserve_thin':'Preserve Thin Features','bpad.resize.preserve_outline':'Preserve Silhouette / Outline','bpad.resize.preserve_internal':'Preserve Internal Edges','bpad.resize.alpha_threshold':'Alpha Coverage Threshold','bpad.resize.source_alpha_threshold':'Source Alpha Threshold','bpad.resize.thin_threshold':'Thin Feature Threshold','bpad.resize.outline_coverage':'Outline Minimum Coverage','bpad.resize.internal_threshold':'Internal Edge Threshold','bpad.resize.internal_weight':'Internal Edge Weight','bpad.resize.binary_alpha':'Output Alpha','bpad.resize.binary_alpha.auto':'Auto','bpad.resize.binary_alpha.binary':'Force Binary','bpad.resize.binary_alpha.coverage':'Preserve Coverage','bpad.message.fallback':'Better Pixel Art downscale failed; Native Nearest was used instead.','bpad.message.incompatible':'Better Pixel Art Downscale could not patch Texture.resizeDialog in this Blockbench version.'});}
+    function readSettings(){const result=Object.assign({},DEFAULT_SETTINGS);try{if(typeof localStorage==='undefined')return result;let raw=localStorage.getItem(SETTINGS_KEY);if(!raw)raw=localStorage.getItem(LEGACY_SETTINGS_KEY);if(!raw)return result;const parsed=JSON.parse(raw);if(!parsed||typeof parsed!=='object')return result;Object.assign(result,parsed);if(result.method==='better_pixel_art')result.method='semantic_v3';if(!['semantic_v3','legacy_v2','native_nearest'].includes(result.method))result.method=DEFAULT_SETTINGS.method;if(!['auto','item','block','entity'].includes(result.contentHint))result.contentHint=DEFAULT_SETTINGS.contentHint;if(!['auto','binary','coverage'].includes(result.binaryAlpha))result.binaryAlpha=DEFAULT_SETTINGS.binaryAlpha;result.advanced=!!result.advanced;result.preserveThinFeatures=result.preserveThinFeatures!==false;result.preserveOutline=result.preserveOutline!==false;result.preserveInternalEdges=result.preserveInternalEdges!==false;for(const key of['alphaThreshold','sourceAlphaThreshold','thinFeatureThreshold','outlineMinCoverage','internalEdgeThreshold']){const value=Number(result[key]);result[key]=Number.isFinite(value)?Math.max(0,Math.min(1,value)):DEFAULT_SETTINGS[key];}const edgeWeight=Number(result.internalEdgeWeight);result.internalEdgeWeight=Number.isFinite(edgeWeight)&&edgeWeight>=0?edgeWeight:DEFAULT_SETTINGS.internalEdgeWeight;return result;}catch(error){console.warn('[Better Pixel Art Downscale] Could not read saved settings.',error);return result;}}
+    function writeSettings(settings){try{if(typeof localStorage==='undefined')return;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(error){console.warn('[Better Pixel Art Downscale] Could not persist resize settings.',error);}}
+    function tr(key,fallback){if(typeof tl!=='function')return fallback||key;const translated=tl(key);return translated===key?(fallback||key):translated;}
+    function finiteNumber(value,fallback){const number=Number(value);return Number.isFinite(number)?number:fallback;}
+    function currentFrameCount(texture){return Math.max(1,Math.round(finiteNumber(texture?.frameCount,1)));}
+    function currentFrameHeight(texture){return Math.max(1,finiteNumber(texture?.display_height,finiteNumber(texture?.height,1)));}
+    function isAnimatedFormat(){return typeof Format!=='undefined'&&!!Format.animated_textures;}
+    function isEligibleDownscale(texture,form){if(!texture||!form||form.mode!=='scale'||!Array.isArray(form.size))return false;const targetWidth=finiteNumber(form.size[0],NaN),targetFrameHeight=finiteNumber(form.size[1],NaN),sourceWidth=finiteNumber(texture.width,NaN),sourceFrameHeight=currentFrameHeight(texture);if(![targetWidth,targetFrameHeight,sourceWidth,sourceFrameHeight].every(Number.isFinite))return false;if(targetWidth<=0||targetFrameHeight<=0||targetWidth>sourceWidth||targetFrameHeight>sourceFrameHeight||!(targetWidth<sourceWidth||targetFrameHeight<sourceFrameHeight))return false;if(isAnimatedFormat()){const sourceFrames=currentFrameCount(texture),targetFrames=Math.max(1,Math.round(finiteNumber(form.frames,sourceFrames)));if(targetFrames!==sourceFrames)return false;}return true;}
+    function legacyOptionsFromForm(form){const binaryAlpha=form._bpad_binary_alpha==='binary'?true:form._bpad_binary_alpha==='coverage'?false:null;return new BetterPixelArtDownscale.DownscaleOptions({alphaThreshold:finiteNumber(form._bpad_alpha_threshold,DEFAULT_SETTINGS.alphaThreshold),sourceAlphaThreshold:finiteNumber(form._bpad_source_alpha_threshold,DEFAULT_SETTINGS.sourceAlphaThreshold),preserveThinFeatures:form._bpad_preserve_thin!==false,thinFeatureThreshold:finiteNumber(form._bpad_thin_threshold,DEFAULT_SETTINGS.thinFeatureThreshold),preserveOutline:form._bpad_preserve_outline!==false,preserveInternalEdges:form._bpad_preserve_internal!==false,outlineMinCoverage:finiteNumber(form._bpad_outline_coverage,DEFAULT_SETTINGS.outlineMinCoverage),internalEdgeThreshold:finiteNumber(form._bpad_internal_threshold,DEFAULT_SETTINGS.internalEdgeThreshold),internalEdgeWeight:finiteNumber(form._bpad_internal_weight,DEFAULT_SETTINGS.internalEdgeWeight),binaryAlpha});}
+    function textureSourceHint(texture){for(const candidate of[texture?.path,texture?.source,texture?.name,texture?.relative_path,texture?.namespace]){const hint=BetterPixelArtDownscale.inferContentHint(candidate);if(hint!==BetterPixelArtDownscale.ContentHint.AUTO)return hint;}return BetterPixelArtDownscale.ContentHint.AUTO;}
+    function semanticOptionsFromForm(texture,form){const selected=form._bpad_content_hint||DEFAULT_SETTINGS.contentHint;let contentHint=selected;if(selected==='auto')contentHint=textureSourceHint(texture);return new BetterPixelArtDownscale.SemanticOptions({contentHint});}
+    function settingsFromForm(form,previousSettings){return{method:form._bpad_method||previousSettings.method,contentHint:form._bpad_content_hint||previousSettings.contentHint,advanced:!!form._bpad_advanced,alphaThreshold:finiteNumber(form._bpad_alpha_threshold,previousSettings.alphaThreshold),sourceAlphaThreshold:finiteNumber(form._bpad_source_alpha_threshold,previousSettings.sourceAlphaThreshold),preserveThinFeatures:form._bpad_preserve_thin!==false,thinFeatureThreshold:finiteNumber(form._bpad_thin_threshold,previousSettings.thinFeatureThreshold),preserveOutline:form._bpad_preserve_outline!==false,preserveInternalEdges:form._bpad_preserve_internal!==false,outlineMinCoverage:finiteNumber(form._bpad_outline_coverage,previousSettings.outlineMinCoverage),internalEdgeThreshold:finiteNumber(form._bpad_internal_threshold,previousSettings.internalEdgeThreshold),internalEdgeWeight:finiteNumber(form._bpad_internal_weight,previousSettings.internalEdgeWeight),binaryAlpha:form._bpad_binary_alpha||previousSettings.binaryAlpha};}
+    function putDownscaledImage(destCtx,sourceImageData,targetWidth,targetHeight,method,options,destX=0,destY=0){const source=BetterPixelArtDownscale.fromImageData(sourceImageData),output=method==='semantic_v3'?BetterPixelArtDownscale.downscaleSemanticV3(source,[targetWidth,targetHeight],options):BetterPixelArtDownscale.downscale(source,[targetWidth,targetHeight],options),imageData=destCtx.createImageData(output.width,output.height);imageData.data.set(output.data);destCtx.putImageData(imageData,destX,destY);}
+    function renderPixelArtDownscale({sourceCtx,destCtx,sourceWidth,sourceHeight,targetWidth,targetHeight,method,options,frameAware,sourceFrames,targetFrames}){const canSplitFrames=frameAware&&sourceFrames>1&&sourceFrames===targetFrames&&sourceHeight%sourceFrames===0&&targetHeight%targetFrames===0;if(!canSplitFrames){putDownscaledImage(destCtx,sourceCtx.getImageData(0,0,sourceWidth,sourceHeight),targetWidth,targetHeight,method,options);return;}const sourceFrameHeight=sourceHeight/sourceFrames,targetFrameHeight=targetHeight/targetFrames;for(let frame=0;frame<sourceFrames;frame+=1){const sourceImageData=sourceCtx.getImageData(0,frame*sourceFrameHeight,sourceWidth,sourceFrameHeight);putDownscaledImage(destCtx,sourceImageData,targetWidth,targetFrameHeight,method,options,0,frame*targetFrameHeight);}}
 
-    function addTranslations() {
-        if (typeof Language === 'undefined' || typeof Language.addTranslations !== 'function') return;
-        Language.addTranslations('en', {
-            'bpad.resize.method': 'Downscale Method',
-            'bpad.resize.method.better': 'Better Pixel Art',
-            'bpad.resize.method.native': 'Native Nearest',
-            'bpad.resize.advanced': 'Advanced BetterPixelArtDownscale Settings',
-            'bpad.resize.preserve_thin': 'Preserve Thin Features',
-            'bpad.resize.preserve_outline': 'Preserve Silhouette / Outline',
-            'bpad.resize.preserve_internal': 'Preserve Internal Edges',
-            'bpad.resize.alpha_threshold': 'Alpha Coverage Threshold',
-            'bpad.resize.source_alpha_threshold': 'Source Alpha Threshold',
-            'bpad.resize.thin_threshold': 'Thin Feature Threshold',
-            'bpad.resize.outline_coverage': 'Outline Minimum Coverage',
-            'bpad.resize.internal_threshold': 'Internal Edge Threshold',
-            'bpad.resize.internal_weight': 'Internal Edge Weight',
-            'bpad.resize.binary_alpha': 'Output Alpha',
-            'bpad.resize.binary_alpha.auto': 'Auto',
-            'bpad.resize.binary_alpha.binary': 'Force Binary',
-            'bpad.resize.binary_alpha.coverage': 'Preserve Coverage',
-            'bpad.message.fallback': 'Better Pixel Art downscale failed; Native Nearest was used instead.',
-            'bpad.message.incompatible': 'Better Pixel Art Downscale could not patch Texture.resizeDialog in this Blockbench version.',
-        });
-    }
+    function enhancedResizeDialog(){const scope=this,saved=readSettings();let updatedToRepeat=false;const dialog=new Dialog({id:'resize_texture',title:'action.resize_texture',form:{mode:{label:'dialog.resize_texture.mode',type:'inline_select',default:'crop',options:{crop:'dialog.resize_texture.mode.crop',scale:'dialog.resize_texture.mode.scale'}},size:{label:'dialog.project.texture_size',type:'vector',dimensions:2,linked_ratio:false,value:[this.width,this.display_height],step:1,force_step:true,min:1},frames:{label:'dialog.resize_texture.animation_frames',type:'number',condition:()=>isAnimatedFormat(),value:this.frameCount||1,min:1,max:2048,step:1},fill:{label:'dialog.resize_texture.fill',type:'select',condition:form=>form.mode==='crop',default:'transparent',options:{transparent:'dialog.resize_texture.fill.transparent',color:'dialog.resize_texture.fill.color',repeat:'dialog.resize_texture.fill.repeat'}},_bpad_method:{label:'bpad.resize.method',type:'inline_select',condition:form=>isEligibleDownscale(scope,form),default:saved.method,options:{semantic_v3:'bpad.resize.method.semantic',legacy_v2:'bpad.resize.method.legacy',native_nearest:'bpad.resize.method.native'}},_bpad_content_hint:{label:'bpad.resize.content_hint',type:'inline_select',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='semantic_v3',default:saved.contentHint,options:{auto:'bpad.resize.content_hint.auto',item:'bpad.resize.content_hint.item',block:'bpad.resize.content_hint.block',entity:'bpad.resize.content_hint.entity'}},_bpad_advanced:{label:'bpad.resize.advanced',type:'checkbox',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2',value:saved.advanced},_bpad_preserve_thin:{label:'bpad.resize.preserve_thin',type:'checkbox',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.preserveThinFeatures},_bpad_preserve_outline:{label:'bpad.resize.preserve_outline',type:'checkbox',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.preserveOutline},_bpad_preserve_internal:{label:'bpad.resize.preserve_internal',type:'checkbox',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.preserveInternalEdges},_bpad_alpha_threshold:{label:'bpad.resize.alpha_threshold',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.alphaThreshold,min:0,max:1,step:0.01},_bpad_source_alpha_threshold:{label:'bpad.resize.source_alpha_threshold',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.sourceAlphaThreshold,min:0,max:1,step:0.001},_bpad_thin_threshold:{label:'bpad.resize.thin_threshold',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.thinFeatureThreshold,min:0,max:1,step:0.01},_bpad_outline_coverage:{label:'bpad.resize.outline_coverage',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.outlineMinCoverage,min:0,max:1,step:0.01},_bpad_internal_threshold:{label:'bpad.resize.internal_threshold',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.internalEdgeThreshold,min:0,max:1,step:0.01},_bpad_internal_weight:{label:'bpad.resize.internal_weight',type:'number',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,value:saved.internalEdgeWeight,min:0,max:8,step:0.05},_bpad_binary_alpha:{label:'bpad.resize.binary_alpha',type:'select',condition:form=>isEligibleDownscale(scope,form)&&form._bpad_method==='legacy_v2'&&form._bpad_advanced,default:saved.binaryAlpha,options:{auto:'bpad.resize.binary_alpha.auto',binary:'bpad.resize.binary_alpha.binary',coverage:'bpad.resize.binary_alpha.coverage'}}},onFormChange(formResult){if(formResult.frames>(scope.frameCount||1)&&!updatedToRepeat){updatedToRepeat=true;this.setFormValues({fill:'repeat'});}},onConfirm(formResult){const oldWidth=scope.width,oldHeight=scope.height,sourceFrames=currentFrameCount(scope),targetFrames=isAnimatedFormat()?Math.max(1,Math.round(finiteNumber(formResult.frames,sourceFrames))):1,eligible=isEligibleDownscale(scope,formResult);let method=eligible?(formResult._bpad_method||'semantic_v3'):'native_nearest',algorithmOptions=null,fallbackError=null;if(method!=='native_nearest'){try{algorithmOptions=method==='semantic_v3'?semanticOptionsFromForm(scope,formResult):legacyOptionsFromForm(formResult);}catch(error){method='native_nearest';fallbackError=error;console.error('[Better Pixel Art Downscale] Invalid algorithm settings; using Native Nearest.',error);}}writeSettings(settingsFromForm(formResult,saved));let elementsToChange=null,algorithmCalls=0,processedSourcePixels=0;const startedAt=typeof performance!=='undefined'&&performance.now?performance.now():Date.now();if(formResult.mode==='crop'&&Texture.length>=2&&!Format.single_texture){const elements=[...Cube.all,...Mesh.all].filter(element=>{for(const faceKey in element.faces)if(element.faces[faceKey].texture===scope.uuid)return true;return false;});if(elements.length)elementsToChange=elements;}if(isAnimatedFormat()&&targetFrames>1)formResult.size[1]*=targetFrames;Undo.initEdit({textures:[scope],bitmap:true,elements:elementsToChange,uv_only:true});scope.edit(()=>{const tempCanvas=document.createElement('canvas'),tempCtx=tempCanvas.getContext('2d',{willReadFrequently:true}),baseCanvasWidth=scope.canvas.width,baseCanvasHeight=scope.canvas.height,scaleX=formResult.size[0]/baseCanvasWidth,scaleY=formResult.size[1]/baseCanvasHeight;const resizeCanvas=ctx=>{const sourceWidth=ctx.canvas.width,sourceHeight=ctx.canvas.height,isFullTextureCanvas=sourceWidth===baseCanvasWidth&&sourceHeight===baseCanvasHeight;tempCanvas.width=sourceWidth;tempCanvas.height=sourceHeight;tempCtx.imageSmoothingEnabled=false;tempCtx.clearRect(0,0,sourceWidth,sourceHeight);tempCtx.drawImage(ctx.canvas,0,0);let targetWidth=sourceWidth,targetHeight=sourceHeight;if(isFullTextureCanvas){targetWidth=formResult.size[0];targetHeight=formResult.size[1];}else if(formResult.mode==='scale'){targetWidth=Math.max(1,Math.round(sourceWidth*scaleX));targetHeight=Math.max(1,Math.round(sourceHeight*scaleY));}else{targetWidth=formResult.size[0];targetHeight=formResult.size[1];}ctx.canvas.width=targetWidth;ctx.canvas.height=targetHeight;ctx.imageSmoothingEnabled=false;if(formResult.mode==='crop'){switch(formResult.fill){case'transparent':ctx.drawImage(tempCanvas,0,0,sourceWidth,sourceHeight);break;case'color':ctx.fillStyle=ColorPanel.get();ctx.fillRect(0,0,targetWidth,targetHeight);ctx.clearRect(0,0,sourceWidth,sourceHeight);ctx.drawImage(tempCanvas,0,0,sourceWidth,sourceHeight);break;case'repeat':for(let x=0;x<targetWidth;x+=sourceWidth)for(let y=0;y<targetHeight;y+=sourceHeight)ctx.drawImage(tempCanvas,x,y,sourceWidth,sourceHeight);break;}return;}const canUseBetterHere=method!=='native_nearest'&&targetWidth<=sourceWidth&&targetHeight<=sourceHeight&&(targetWidth<sourceWidth||targetHeight<sourceHeight);if(!canUseBetterHere){ctx.drawImage(tempCanvas,0,0,targetWidth,targetHeight);return;}try{renderPixelArtDownscale({sourceCtx:tempCtx,destCtx:ctx,sourceWidth,sourceHeight,targetWidth,targetHeight,method,options:algorithmOptions,frameAware:isFullTextureCanvas,sourceFrames,targetFrames});algorithmCalls+=1;processedSourcePixels+=sourceWidth*sourceHeight;}catch(error){fallbackError=fallbackError||error;console.error('[Better Pixel Art Downscale] Algorithm failed; using Native Nearest for this canvas.',error);ctx.imageSmoothingEnabled=false;ctx.drawImage(tempCanvas,0,0,targetWidth,targetHeight);}};if(scope.layers_enabled&&scope.layers.length){for(const layer of scope.layers)if(formResult.mode==='scale'){resizeCanvas(layer.ctx);layer.offset[0]=Math.round(layer.offset[0]*(formResult.size[0]/scope.width));layer.offset[1]=Math.round(layer.offset[1]*(formResult.size[1]/scope.height));}}else resizeCanvas(scope.ctx);scope.width=formResult.size[0];scope.height=formResult.size[1];scope.keep_size=true;if(formResult.mode==='scale'){}else if(formResult.fill==='repeat'&&isAnimatedFormat()&&formResult.size[0]<formResult.size[1]){}else if(Format.single_texture||Texture.all.length===1||Format.per_texture_uv_size){if(Format.per_texture_uv_size){scope.uv_width=scope.uv_width*(formResult.size[0]/oldWidth);scope.uv_height=scope.uv_height*(formResult.size[1]/oldHeight);Project.texture_width=scope.uv_width;Project.texture_height=scope.uv_height;}else{Undo.current_save.uv_mode={box_uv:Project.box_uv,width:Project.texture_width,height:Project.texture_height};Undo.current_save.aspects.uv_mode=true;Project.texture_width=Project.texture_width*(formResult.size[0]/oldWidth);Project.texture_height=Project.texture_height*(formResult.size[1]/oldHeight);}Canvas.updateAllUVs();}else if(Texture.length>=2&&elementsToChange){elementsToChange.forEach(element=>{if(element.getTypeBehavior('cube_faces')){for(const key in element.faces){if(element.faces[key].texture!==scope.uuid)continue;const uv=element.faces[key].uv;uv[0]/=formResult.size[0]/oldWidth;uv[2]/=formResult.size[0]/oldWidth;uv[1]/=formResult.size[1]/oldHeight;uv[3]/=formResult.size[1]/oldHeight;}}else if(element instanceof Mesh){for(const key in element.faces){if(element.faces[key].texture!==scope.uuid)continue;const uv=element.faces[key].uv;for(const vertexKey in uv){uv[vertexKey][0]/=formResult.size[0]/oldWidth;uv[vertexKey][1]/=formResult.size[1]/oldHeight;}}}});Canvas.updateView({elements:elementsToChange,element_aspects:{uv:true}});}}, {no_undo:true});Undo.finishEdit('Resize texture');UVEditor.vue.updateTexture();setTimeout(updateSelection,100);if(algorithmCalls){const endedAt=typeof performance!=='undefined'&&performance.now?performance.now():Date.now();console.debug(`[Better Pixel Art Downscale] ${scope.name||'Texture'}: ${method}, ${algorithmCalls} canvas${algorithmCalls===1?'':'es'}, ${processedSourcePixels.toLocaleString()} source pixels, ${(endedAt-startedAt).toFixed(2)} ms.`);}if(fallbackError&&typeof Blockbench!=='undefined'&&typeof Blockbench.showQuickMessage==='function')Blockbench.showQuickMessage(tr('bpad.message.fallback','Better Pixel Art downscale failed; Native Nearest was used instead.'),3500);}});dialog.show();return this;}
 
-    function readSettings() {
-        const result = Object.assign({}, DEFAULT_SETTINGS);
-        try {
-            if (typeof localStorage === 'undefined') return result;
-            const raw = localStorage.getItem(SETTINGS_KEY);
-            if (!raw) return result;
-            const parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') return result;
-            Object.assign(result, parsed);
-
-            if (!['better_pixel_art', 'native_nearest'].includes(result.method)) result.method = DEFAULT_SETTINGS.method;
-            if (!['auto', 'binary', 'coverage'].includes(result.binaryAlpha)) result.binaryAlpha = DEFAULT_SETTINGS.binaryAlpha;
-            result.advanced = !!result.advanced;
-            result.preserveThinFeatures = result.preserveThinFeatures !== false;
-            result.preserveOutline = result.preserveOutline !== false;
-            result.preserveInternalEdges = result.preserveInternalEdges !== false;
-
-            for (const key of [
-                'alphaThreshold',
-                'sourceAlphaThreshold',
-                'thinFeatureThreshold',
-                'outlineMinCoverage',
-                'internalEdgeThreshold',
-            ]) {
-                const value = Number(result[key]);
-                result[key] = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : DEFAULT_SETTINGS[key];
-            }
-            const edgeWeight = Number(result.internalEdgeWeight);
-            result.internalEdgeWeight = Number.isFinite(edgeWeight) && edgeWeight >= 0
-                ? edgeWeight
-                : DEFAULT_SETTINGS.internalEdgeWeight;
-            return result;
-        } catch (error) {
-            console.warn('[Better Pixel Art Downscale] Could not read saved settings.', error);
-            return result;
-        }
-    }
-
-    function writeSettings(settings) {
-        try {
-            if (typeof localStorage === 'undefined') return;
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-        } catch (error) {
-            console.warn('[Better Pixel Art Downscale] Could not persist resize settings.', error);
-        }
-    }
-
-    function tr(key, fallback) {
-        if (typeof tl !== 'function') return fallback || key;
-        const translated = tl(key);
-        return translated === key ? (fallback || key) : translated;
-    }
-
-    function finiteNumber(value, fallback) {
-        const number = Number(value);
-        return Number.isFinite(number) ? number : fallback;
-    }
-
-    function currentFrameCount(texture) {
-        return Math.max(1, Math.round(finiteNumber(texture?.frameCount, 1)));
-    }
-
-    function currentFrameHeight(texture) {
-        const value = finiteNumber(texture?.display_height, finiteNumber(texture?.height, 1));
-        return Math.max(1, value);
-    }
-
-    function isAnimatedFormat() {
-        return typeof Format !== 'undefined' && !!Format.animated_textures;
-    }
-
-    function isEligibleDownscale(texture, form) {
-        if (!texture || !form || form.mode !== 'scale' || !Array.isArray(form.size)) return false;
-        const targetWidth = finiteNumber(form.size[0], NaN);
-        const targetFrameHeight = finiteNumber(form.size[1], NaN);
-        const sourceWidth = finiteNumber(texture.width, NaN);
-        const sourceFrameHeight = currentFrameHeight(texture);
-        if (![targetWidth, targetFrameHeight, sourceWidth, sourceFrameHeight].every(Number.isFinite)) return false;
-        if (targetWidth <= 0 || targetFrameHeight <= 0) return false;
-        if (targetWidth > sourceWidth || targetFrameHeight > sourceFrameHeight) return false;
-        if (!(targetWidth < sourceWidth || targetFrameHeight < sourceFrameHeight)) return false;
-
-        if (isAnimatedFormat()) {
-            const sourceFrames = currentFrameCount(texture);
-            const targetFrames = Math.max(1, Math.round(finiteNumber(form.frames, sourceFrames)));
-            if (targetFrames !== sourceFrames) return false;
-        }
-        return true;
-    }
-
-    function optionsFromForm(form) {
-        const binaryAlpha = form._bpad_binary_alpha === 'binary'
-            ? true
-            : form._bpad_binary_alpha === 'coverage'
-                ? false
-                : null;
-
-        return new BetterPixelArtDownscale.DownscaleOptions({
-            alphaThreshold: finiteNumber(form._bpad_alpha_threshold, DEFAULT_SETTINGS.alphaThreshold),
-            sourceAlphaThreshold: finiteNumber(form._bpad_source_alpha_threshold, DEFAULT_SETTINGS.sourceAlphaThreshold),
-            preserveThinFeatures: form._bpad_preserve_thin !== false,
-            thinFeatureThreshold: finiteNumber(form._bpad_thin_threshold, DEFAULT_SETTINGS.thinFeatureThreshold),
-            preserveOutline: form._bpad_preserve_outline !== false,
-            preserveInternalEdges: form._bpad_preserve_internal !== false,
-            outlineMinCoverage: finiteNumber(form._bpad_outline_coverage, DEFAULT_SETTINGS.outlineMinCoverage),
-            internalEdgeThreshold: finiteNumber(form._bpad_internal_threshold, DEFAULT_SETTINGS.internalEdgeThreshold),
-            internalEdgeWeight: finiteNumber(form._bpad_internal_weight, DEFAULT_SETTINGS.internalEdgeWeight),
-            binaryAlpha,
-        });
-    }
-
-    function settingsFromForm(form, previousSettings) {
-        return {
-            method: form._bpad_method || previousSettings.method,
-            advanced: !!form._bpad_advanced,
-            alphaThreshold: finiteNumber(form._bpad_alpha_threshold, previousSettings.alphaThreshold),
-            sourceAlphaThreshold: finiteNumber(form._bpad_source_alpha_threshold, previousSettings.sourceAlphaThreshold),
-            preserveThinFeatures: form._bpad_preserve_thin !== false,
-            thinFeatureThreshold: finiteNumber(form._bpad_thin_threshold, previousSettings.thinFeatureThreshold),
-            preserveOutline: form._bpad_preserve_outline !== false,
-            preserveInternalEdges: form._bpad_preserve_internal !== false,
-            outlineMinCoverage: finiteNumber(form._bpad_outline_coverage, previousSettings.outlineMinCoverage),
-            internalEdgeThreshold: finiteNumber(form._bpad_internal_threshold, previousSettings.internalEdgeThreshold),
-            internalEdgeWeight: finiteNumber(form._bpad_internal_weight, previousSettings.internalEdgeWeight),
-            binaryAlpha: form._bpad_binary_alpha || previousSettings.binaryAlpha,
-        };
-    }
-
-    function putDownscaledImage(destCtx, sourceImageData, targetWidth, targetHeight, options, destX = 0, destY = 0) {
-        const source = BetterPixelArtDownscale.fromImageData(sourceImageData);
-        const output = BetterPixelArtDownscale.downscale(source, [targetWidth, targetHeight], options);
-        const imageData = destCtx.createImageData(output.width, output.height);
-        imageData.data.set(output.data);
-        destCtx.putImageData(imageData, destX, destY);
-    }
-
-    function renderPixelArtDownscale({
-        sourceCtx,
-        destCtx,
-        sourceWidth,
-        sourceHeight,
-        targetWidth,
-        targetHeight,
-        options,
-        frameAware,
-        sourceFrames,
-        targetFrames,
-    }) {
-        const canSplitFrames = frameAware &&
-            sourceFrames > 1 &&
-            sourceFrames === targetFrames &&
-            sourceHeight % sourceFrames === 0 &&
-            targetHeight % targetFrames === 0;
-
-        if (!canSplitFrames) {
-            const imageData = sourceCtx.getImageData(0, 0, sourceWidth, sourceHeight);
-            putDownscaledImage(destCtx, imageData, targetWidth, targetHeight, options);
-            return;
-        }
-
-        const sourceFrameHeight = sourceHeight / sourceFrames;
-        const targetFrameHeight = targetHeight / targetFrames;
-        for (let frame = 0; frame < sourceFrames; frame += 1) {
-            const sourceImageData = sourceCtx.getImageData(
-                0,
-                frame * sourceFrameHeight,
-                sourceWidth,
-                sourceFrameHeight,
-            );
-            putDownscaledImage(
-                destCtx,
-                sourceImageData,
-                targetWidth,
-                targetFrameHeight,
-                options,
-                0,
-                frame * targetFrameHeight,
-            );
-        }
-    }
-
-    function enhancedResizeDialog() {
-        const scope = this;
-        const saved = readSettings();
-        let updatedToRepeat = false;
-
-        const dialog = new Dialog({
-            id: 'resize_texture',
-            title: 'action.resize_texture',
-            form: {
-                mode: {label: 'dialog.resize_texture.mode', type: 'inline_select', default: 'crop', options: {
-                    crop: 'dialog.resize_texture.mode.crop',
-                    scale: 'dialog.resize_texture.mode.scale',
-                }},
-                size: {
-                    label: 'dialog.project.texture_size',
-                    type: 'vector',
-                    dimensions: 2,
-                    linked_ratio: false,
-                    value: [this.width, this.display_height],
-                    step: 1,
-                    force_step: true,
-                    min: 1,
-                },
-                frames: {
-                    label: 'dialog.resize_texture.animation_frames',
-                    type: 'number',
-                    condition: () => isAnimatedFormat(),
-                    value: this.frameCount || 1,
-                    min: 1,
-                    max: 2048,
-                    step: 1,
-                },
-                fill: {label: 'dialog.resize_texture.fill', type: 'select', condition: form => form.mode === 'crop', default: 'transparent', options: {
-                    transparent: 'dialog.resize_texture.fill.transparent',
-                    color: 'dialog.resize_texture.fill.color',
-                    repeat: 'dialog.resize_texture.fill.repeat',
-                }},
-                _bpad_method: {
-                    label: 'bpad.resize.method',
-                    type: 'inline_select',
-                    condition: form => isEligibleDownscale(scope, form),
-                    default: saved.method,
-                    options: {
-                        better_pixel_art: 'bpad.resize.method.better',
-                        native_nearest: 'bpad.resize.method.native',
-                    },
-                },
-                _bpad_advanced: {
-                    label: 'bpad.resize.advanced',
-                    type: 'checkbox',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art',
-                    value: saved.advanced,
-                },
-                _bpad_preserve_thin: {
-                    label: 'bpad.resize.preserve_thin',
-                    type: 'checkbox',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.preserveThinFeatures,
-                },
-                _bpad_preserve_outline: {
-                    label: 'bpad.resize.preserve_outline',
-                    type: 'checkbox',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.preserveOutline,
-                },
-                _bpad_preserve_internal: {
-                    label: 'bpad.resize.preserve_internal',
-                    type: 'checkbox',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.preserveInternalEdges,
-                },
-                _bpad_alpha_threshold: {
-                    label: 'bpad.resize.alpha_threshold',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.alphaThreshold,
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                },
-                _bpad_source_alpha_threshold: {
-                    label: 'bpad.resize.source_alpha_threshold',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.sourceAlphaThreshold,
-                    min: 0,
-                    max: 1,
-                    step: 0.001,
-                },
-                _bpad_thin_threshold: {
-                    label: 'bpad.resize.thin_threshold',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.thinFeatureThreshold,
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                },
-                _bpad_outline_coverage: {
-                    label: 'bpad.resize.outline_coverage',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.outlineMinCoverage,
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                },
-                _bpad_internal_threshold: {
-                    label: 'bpad.resize.internal_threshold',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.internalEdgeThreshold,
-                    min: 0,
-                    max: 1,
-                    step: 0.01,
-                },
-                _bpad_internal_weight: {
-                    label: 'bpad.resize.internal_weight',
-                    type: 'number',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    value: saved.internalEdgeWeight,
-                    min: 0,
-                    max: 8,
-                    step: 0.05,
-                },
-                _bpad_binary_alpha: {
-                    label: 'bpad.resize.binary_alpha',
-                    type: 'select',
-                    condition: form => isEligibleDownscale(scope, form) && form._bpad_method === 'better_pixel_art' && form._bpad_advanced,
-                    default: saved.binaryAlpha,
-                    options: {
-                        auto: 'bpad.resize.binary_alpha.auto',
-                        binary: 'bpad.resize.binary_alpha.binary',
-                        coverage: 'bpad.resize.binary_alpha.coverage',
-                    },
-                },
-            },
-            onFormChange(formResult) {
-                if (formResult.frames > (scope.frameCount || 1) && !updatedToRepeat) {
-                    updatedToRepeat = true;
-                    this.setFormValues({fill: 'repeat'});
-                }
-            },
-            onConfirm(formResult) {
-                const oldWidth = scope.width;
-                const oldHeight = scope.height;
-                const sourceFrames = currentFrameCount(scope);
-                const targetFrames = isAnimatedFormat()
-                    ? Math.max(1, Math.round(finiteNumber(formResult.frames, sourceFrames)))
-                    : 1;
-                const targetFrameHeight = finiteNumber(formResult.size[1], currentFrameHeight(scope));
-                const eligible = isEligibleDownscale(scope, formResult);
-                let useBetterPixelArt = eligible && formResult._bpad_method === 'better_pixel_art';
-                let algorithmOptions = null;
-                let fallbackError = null;
-                if (useBetterPixelArt) {
-                    try {
-                        algorithmOptions = optionsFromForm(formResult);
-                    } catch (error) {
-                        useBetterPixelArt = false;
-                        fallbackError = error;
-                        console.error('[Better Pixel Art Downscale] Invalid algorithm settings; using Native Nearest.', error);
-                    }
-                }
-                const persisted = settingsFromForm(formResult, saved);
-                writeSettings(persisted);
-
-                let elementsToChange = null;
-                let algorithmCalls = 0;
-                let processedSourcePixels = 0;
-                const startedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-
-                if (formResult.mode === 'crop' && Texture.length >= 2 && !Format.single_texture) {
-                    const elements = [...Cube.all, ...Mesh.all].filter(element => {
-                        for (const faceKey in element.faces) {
-                            if (element.faces[faceKey].texture === scope.uuid) return true;
-                        }
-                        return false;
-                    });
-                    if (elements.length) elementsToChange = elements;
-                }
-
-                if (isAnimatedFormat() && targetFrames > 1) {
-                    formResult.size[1] *= targetFrames;
-                }
-
-                Undo.initEdit({
-                    textures: [scope],
-                    bitmap: true,
-                    elements: elementsToChange,
-                    uv_only: true,
-                });
-
-                scope.edit(() => {
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d', {willReadFrequently: true});
-                    const baseCanvasWidth = scope.canvas.width;
-                    const baseCanvasHeight = scope.canvas.height;
-                    const scaleX = formResult.size[0] / baseCanvasWidth;
-                    const scaleY = formResult.size[1] / baseCanvasHeight;
-
-                    const resizeCanvas = (ctx) => {
-                        const sourceWidth = ctx.canvas.width;
-                        const sourceHeight = ctx.canvas.height;
-                        const isFullTextureCanvas = sourceWidth === baseCanvasWidth && sourceHeight === baseCanvasHeight;
-
-                        tempCanvas.width = sourceWidth;
-                        tempCanvas.height = sourceHeight;
-                        tempCtx.imageSmoothingEnabled = false;
-                        tempCtx.clearRect(0, 0, sourceWidth, sourceHeight);
-                        tempCtx.drawImage(ctx.canvas, 0, 0);
-
-                        let targetWidth = sourceWidth;
-                        let targetHeight = sourceHeight;
-                        if (isFullTextureCanvas) {
-                            targetWidth = formResult.size[0];
-                            targetHeight = formResult.size[1];
-                        } else if (formResult.mode === 'scale') {
-                            targetWidth = Math.max(1, Math.round(sourceWidth * scaleX));
-                            targetHeight = Math.max(1, Math.round(sourceHeight * scaleY));
-                        } else {
-                            targetWidth = formResult.size[0];
-                            targetHeight = formResult.size[1];
-                        }
-
-                        ctx.canvas.width = targetWidth;
-                        ctx.canvas.height = targetHeight;
-                        ctx.imageSmoothingEnabled = false;
-
-                        if (formResult.mode === 'crop') {
-                            switch (formResult.fill) {
-                                case 'transparent':
-                                    ctx.drawImage(tempCanvas, 0, 0, sourceWidth, sourceHeight);
-                                    break;
-                                case 'color':
-                                    ctx.fillStyle = ColorPanel.get();
-                                    ctx.fillRect(0, 0, targetWidth, targetHeight);
-                                    ctx.clearRect(0, 0, sourceWidth, sourceHeight);
-                                    ctx.drawImage(tempCanvas, 0, 0, sourceWidth, sourceHeight);
-                                    break;
-                                case 'repeat':
-                                    for (let x = 0; x < targetWidth; x += sourceWidth) {
-                                        for (let y = 0; y < targetHeight; y += sourceHeight) {
-                                            ctx.drawImage(tempCanvas, x, y, sourceWidth, sourceHeight);
-                                        }
-                                    }
-                                    break;
-                            }
-                            return;
-                        }
-
-                        const canUseBetterHere = useBetterPixelArt &&
-                            targetWidth <= sourceWidth &&
-                            targetHeight <= sourceHeight &&
-                            (targetWidth < sourceWidth || targetHeight < sourceHeight);
-
-                        if (!canUseBetterHere) {
-                            ctx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
-                            return;
-                        }
-
-                        try {
-                            renderPixelArtDownscale({
-                                sourceCtx: tempCtx,
-                                destCtx: ctx,
-                                sourceWidth,
-                                sourceHeight,
-                                targetWidth,
-                                targetHeight,
-                                options: algorithmOptions,
-                                frameAware: isFullTextureCanvas,
-                                sourceFrames,
-                                targetFrames,
-                            });
-                            algorithmCalls += 1;
-                            processedSourcePixels += sourceWidth * sourceHeight;
-                        } catch (error) {
-                            fallbackError = fallbackError || error;
-                            console.error('[Better Pixel Art Downscale] Algorithm failed; using Native Nearest for this canvas.', error);
-                            ctx.imageSmoothingEnabled = false;
-                            ctx.drawImage(tempCanvas, 0, 0, targetWidth, targetHeight);
-                        }
-                    };
-
-                    if (scope.layers_enabled && scope.layers.length) {
-                        for (const layer of scope.layers) {
-                            if (formResult.mode === 'scale') {
-                                resizeCanvas(layer.ctx);
-                                layer.offset[0] = Math.round(layer.offset[0] * (formResult.size[0] / scope.width));
-                                layer.offset[1] = Math.round(layer.offset[1] * (formResult.size[1] / scope.height));
-                            }
-                        }
-                    } else {
-                        resizeCanvas(scope.ctx);
-                    }
-
-                    scope.width = formResult.size[0];
-                    scope.height = formResult.size[1];
-                    scope.keep_size = true;
-
-                    if (formResult.mode === 'scale') {
-                        // Scaling keeps Blockbench's native UV behavior unchanged.
-                    } else if (formResult.fill === 'repeat' && isAnimatedFormat() && formResult.size[0] < formResult.size[1]) {
-                        // Animated texture repeat: native behavior.
-                    } else if (Format.single_texture || Texture.all.length === 1 || Format.per_texture_uv_size) {
-                        if (Format.per_texture_uv_size) {
-                            scope.uv_width = scope.uv_width * (formResult.size[0] / oldWidth);
-                            scope.uv_height = scope.uv_height * (formResult.size[1] / oldHeight);
-                            Project.texture_width = scope.uv_width;
-                            Project.texture_height = scope.uv_height;
-                        } else {
-                            Undo.current_save.uv_mode = {
-                                box_uv: Project.box_uv,
-                                width: Project.texture_width,
-                                height: Project.texture_height,
-                            };
-                            Undo.current_save.aspects.uv_mode = true;
-                            Project.texture_width = Project.texture_width * (formResult.size[0] / oldWidth);
-                            Project.texture_height = Project.texture_height * (formResult.size[1] / oldHeight);
-                        }
-                        Canvas.updateAllUVs();
-                    } else if (Texture.length >= 2 && elementsToChange) {
-                        elementsToChange.forEach(element => {
-                            if (element.getTypeBehavior('cube_faces')) {
-                                for (const key in element.faces) {
-                                    if (element.faces[key].texture !== scope.uuid) continue;
-                                    const uv = element.faces[key].uv;
-                                    uv[0] /= formResult.size[0] / oldWidth;
-                                    uv[2] /= formResult.size[0] / oldWidth;
-                                    uv[1] /= formResult.size[1] / oldHeight;
-                                    uv[3] /= formResult.size[1] / oldHeight;
-                                }
-                            } else if (element instanceof Mesh) {
-                                for (const key in element.faces) {
-                                    if (element.faces[key].texture !== scope.uuid) continue;
-                                    const uv = element.faces[key].uv;
-                                    for (const vertexKey in uv) {
-                                        uv[vertexKey][0] /= formResult.size[0] / oldWidth;
-                                        uv[vertexKey][1] /= formResult.size[1] / oldHeight;
-                                    }
-                                }
-                            }
-                        });
-                        Canvas.updateView({elements: elementsToChange, element_aspects: {uv: true}});
-                    }
-                }, {no_undo: true});
-
-                Undo.finishEdit('Resize texture');
-                UVEditor.vue.updateTexture();
-                setTimeout(updateSelection, 100);
-
-                if (algorithmCalls) {
-                    const endedAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-                    console.debug(
-                        `[Better Pixel Art Downscale] ${scope.name || 'Texture'}: ${algorithmCalls} canvas${algorithmCalls === 1 ? '' : 'es'}, ` +
-                        `${processedSourcePixels.toLocaleString()} source pixels, ${(endedAt - startedAt).toFixed(2)} ms.`,
-                    );
-                }
-                if (fallbackError) {
-                    if (Blockbench && typeof Blockbench.showQuickMessage === 'function') {
-                        Blockbench.showQuickMessage(tr('bpad.message.fallback', 'Better Pixel Art downscale failed; Native Nearest was used instead.'), 3500);
-                    }
-                }
-            },
-        });
-
-        dialog.show();
-        return this;
-    }
-
-    Object.defineProperties(enhancedResizeDialog, {
-        __betterPixelArtDownscalePatch: {value: true},
-        __betterPixelArtDownscaleCore: {value: BetterPixelArtDownscale},
-        __betterPixelArtDownscaleRevision: {value: CORE_REVISION},
-    });
-
-    function installPatch() {
-        if (typeof Texture === 'undefined' || !Texture.prototype || typeof Texture.prototype.resizeDialog !== 'function') {
-            console.error('[Better Pixel Art Downscale] Texture.resizeDialog was not found.');
-            if (typeof Blockbench !== 'undefined' && typeof Blockbench.showQuickMessage === 'function') {
-                Blockbench.showQuickMessage(tr('bpad.message.incompatible', 'Better Pixel Art Downscale could not patch Texture.resizeDialog in this Blockbench version.'), 5000);
-            }
-            return false;
-        }
-
-        if (Texture.prototype.resizeDialog.__betterPixelArtDownscalePatch) {
-            patchedResizeDialog = Texture.prototype.resizeDialog;
-            return true;
-        }
-
-        originalResizeDialog = Texture.prototype.resizeDialog;
-        patchedResizeDialog = enhancedResizeDialog;
-        Texture.prototype.resizeDialog = patchedResizeDialog;
-        console.info(`[Better Pixel Art Downscale] Installed ${PLUGIN_VERSION}. ${CORE_REVISION}`);
-        return true;
-    }
-
-    function uninstallPatch() {
-        if (
-            typeof Texture !== 'undefined' &&
-            Texture.prototype &&
-            Texture.prototype.resizeDialog === patchedResizeDialog &&
-            originalResizeDialog
-        ) {
-            Texture.prototype.resizeDialog = originalResizeDialog;
-        }
-        originalResizeDialog = null;
-        patchedResizeDialog = null;
-    }
-
-    Plugin.register(PLUGIN_ID, {
-        title: 'Better Pixel Art Downscale',
-        author: 'MidFord',
-        description: 'Integrates BetterPixelArtDownscale directly into Blockbench\'s native Resize Texture dialog, preserving pixel-art silhouettes, outlines, thin features, internal edges, palette colors, alpha behavior, layers, Undo, and native UV handling.',
-        icon: 'photo_size_select_small',
-        version: PLUGIN_VERSION,
-        variant: 'both',
-        min_version: '5.1.0',
-        tags: ['Texture', 'Pixel Art', 'Utility'],
-        onload() {
-            addTranslations();
-            installPatch();
-        },
-        onunload() {
-            uninstallPatch();
-        },
-    });
+    Object.defineProperties(enhancedResizeDialog,{__betterPixelArtDownscalePatch:{value:true},__betterPixelArtDownscaleCore:{value:BetterPixelArtDownscale},__betterPixelArtDownscaleRevision:{value:CORE_REVISION}});
+    function installPatch(){if(typeof Texture==='undefined'||!Texture.prototype||typeof Texture.prototype.resizeDialog!=='function'){console.error('[Better Pixel Art Downscale] Texture.resizeDialog was not found.');if(typeof Blockbench!=='undefined'&&typeof Blockbench.showQuickMessage==='function')Blockbench.showQuickMessage(tr('bpad.message.incompatible','Better Pixel Art Downscale could not patch Texture.resizeDialog in this Blockbench version.'),5000);return false;}if(Texture.prototype.resizeDialog.__betterPixelArtDownscalePatch){patchedResizeDialog=Texture.prototype.resizeDialog;return true;}originalResizeDialog=Texture.prototype.resizeDialog;patchedResizeDialog=enhancedResizeDialog;Texture.prototype.resizeDialog=patchedResizeDialog;console.info(`[Better Pixel Art Downscale] Installed ${PLUGIN_VERSION}. ${CORE_REVISION}`);return true;}
+    function uninstallPatch(){if(typeof Texture!=='undefined'&&Texture.prototype&&Texture.prototype.resizeDialog===patchedResizeDialog&&originalResizeDialog)Texture.prototype.resizeDialog=originalResizeDialog;originalResizeDialog=null;patchedResizeDialog=null;}
+    Plugin.register(PLUGIN_ID,{title:'Better Pixel Art Downscale',author:'MidFord',description:'Semantic pixel-art downscaling for Blockbench: shape-aware sprites, phase-coherent surfaces, topology-aware cutouts, ghost-alpha preservation, palette-native colors, animation/layer support, Undo, and native UV handling.',icon:'photo_size_select_small',version:PLUGIN_VERSION,variant:'both',min_version:'5.1.0',tags:['Texture','Pixel Art','Utility'],onload(){addTranslations();installPatch();},onunload(){uninstallPatch();}});
 })();
